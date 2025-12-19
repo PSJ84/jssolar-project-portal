@@ -134,6 +134,18 @@ export async function PATCH(
       location,
       capacityKw,
       status,
+      // 설비 정보
+      moduleManufacturer,
+      moduleModel,
+      moduleCapacity,
+      moduleQuantity,
+      inverterManufacturer,
+      inverterModel,
+      inverterCapacity,
+      inverterQuantity,
+      structureType,
+      structureManufacturer,
+      notes,
     } = body;
 
     // 기존 프로젝트 확인
@@ -163,6 +175,18 @@ export async function PATCH(
       metadata.newStatus = status;
     }
 
+    // 설비 정보 변경 여부 확인
+    const equipmentFields = [
+      'moduleManufacturer', 'moduleModel', 'moduleCapacity', 'moduleQuantity',
+      'inverterManufacturer', 'inverterModel', 'inverterCapacity', 'inverterQuantity',
+      'structureType', 'structureManufacturer', 'notes'
+    ];
+    const hasEquipmentChanges = equipmentFields.some(field => body[field] !== undefined);
+    if (hasEquipmentChanges) {
+      changes.push("설비 정보 수정");
+      metadata.equipmentUpdated = true;
+    }
+
     // 프로젝트 업데이트 및 Activity 로그 기록
     const project = await prisma.$transaction(async (tx) => {
       const updatedProject = await tx.project.update({
@@ -173,6 +197,18 @@ export async function PATCH(
           ...(location !== undefined && { location }),
           ...(capacityKw !== undefined && { capacityKw: capacityKw ? parseFloat(capacityKw) : null }),
           ...(status && { status }),
+          // 설비 정보
+          ...(moduleManufacturer !== undefined && { moduleManufacturer }),
+          ...(moduleModel !== undefined && { moduleModel }),
+          ...(moduleCapacity !== undefined && { moduleCapacity }),
+          ...(moduleQuantity !== undefined && { moduleQuantity: moduleQuantity ? parseInt(moduleQuantity) : null }),
+          ...(inverterManufacturer !== undefined && { inverterManufacturer }),
+          ...(inverterModel !== undefined && { inverterModel }),
+          ...(inverterCapacity !== undefined && { inverterCapacity }),
+          ...(inverterQuantity !== undefined && { inverterQuantity: inverterQuantity ? parseInt(inverterQuantity) : null }),
+          ...(structureType !== undefined && { structureType }),
+          ...(structureManufacturer !== undefined && { structureManufacturer }),
+          ...(notes !== undefined && { notes }),
         },
         include: {
           _count: {

@@ -73,6 +73,23 @@ model Project {
   capacityKw      Float?          // Solar installation capacity in kW
   progressPercent Int             @default(0) // 0-100 (calculated from completed tasks)
   status          ProjectStatus   @default(ACTIVE)
+
+  // 설비 정보
+  moduleManufacturer   String?   // 모듈 제조사
+  moduleModel          String?   // 모듈 모델명
+  moduleCapacity       String?   // 모듈 용량 (예: 550W)
+  moduleQuantity       Int?      // 모듈 수량
+
+  inverterManufacturer String?   // 인버터 제조사
+  inverterModel        String?   // 인버터 모델명
+  inverterCapacity     String?   // 인버터 용량 (예: 50kW)
+  inverterQuantity     Int?      // 인버터 수량
+
+  structureType        String?   // 구조물 종류 (예: 고정식, 추적식)
+  structureManufacturer String?  // 구조물 제조사
+
+  notes                String?   @db.Text // 기타 메모/비고
+
   members         ProjectMember[]
   documents       Document[]
   activities      Activity[]

@@ -255,6 +255,69 @@ export default async function ClientProjectDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {/* 설비 정보 */}
+          {(project.moduleManufacturer || project.inverterManufacturer || project.structureType) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>설비 정보</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 모듈 */}
+                {(project.moduleManufacturer || project.moduleModel) && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">모듈</p>
+                    <p className="text-sm">
+                      {[
+                        project.moduleManufacturer,
+                        project.moduleModel,
+                        project.moduleCapacity,
+                        project.moduleQuantity ? `x ${project.moduleQuantity}장` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </p>
+                  </div>
+                )}
+
+                {/* 인버터 */}
+                {(project.inverterManufacturer || project.inverterModel) && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">인버터</p>
+                    <p className="text-sm">
+                      {[
+                        project.inverterManufacturer,
+                        project.inverterModel,
+                        project.inverterCapacity,
+                        project.inverterQuantity ? `x ${project.inverterQuantity}대` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </p>
+                  </div>
+                )}
+
+                {/* 구조물 */}
+                {(project.structureType || project.structureManufacturer) && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">구조물</p>
+                    <p className="text-sm">
+                      {project.structureType}
+                      {project.structureManufacturer && ` (${project.structureManufacturer})`}
+                    </p>
+                  </div>
+                )}
+
+                {/* 메모 */}
+                {project.notes && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">비고</p>
+                    <p className="text-sm whitespace-pre-wrap">{project.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="documents">

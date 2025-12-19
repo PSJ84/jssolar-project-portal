@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectStatus } from "@prisma/client";
-import { Edit, MapPin, Zap, Calendar, ArrowLeft, Users, Clock } from "lucide-react";
+import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
 import { DocumentManagement } from "@/components/project/document-management";
 import { TaskManagement } from "@/components/project/task-management";
+import { ProjectOverviewEdit } from "@/components/project/project-overview-edit";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -136,14 +137,6 @@ export default async function AdminProjectDetailPage({
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/admin/projects/${project.id}/edit`}>
-              <Edit className="h-4 w-4 mr-2" />
-              수정
-            </Link>
-          </Button>
-        </div>
       </div>
 
       {/* Task Management - Checklist */}
@@ -223,16 +216,26 @@ export default async function AdminProjectDetailPage({
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>프로젝트 설명</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {project.description || (
-                <p className="text-muted-foreground">설명이 없습니다.</p>
-              )}
-            </CardContent>
-          </Card>
+          <ProjectOverviewEdit
+            project={{
+              id: project.id,
+              name: project.name,
+              description: project.description,
+              location: project.location,
+              capacityKw: project.capacityKw,
+              moduleManufacturer: project.moduleManufacturer,
+              moduleModel: project.moduleModel,
+              moduleCapacity: project.moduleCapacity,
+              moduleQuantity: project.moduleQuantity,
+              inverterManufacturer: project.inverterManufacturer,
+              inverterModel: project.inverterModel,
+              inverterCapacity: project.inverterCapacity,
+              inverterQuantity: project.inverterQuantity,
+              structureType: project.structureType,
+              structureManufacturer: project.structureManufacturer,
+              notes: project.notes,
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="documents">
