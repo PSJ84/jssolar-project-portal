@@ -14,7 +14,6 @@ import {
   FileText,
   ExternalLink,
   ArrowLeft,
-  User,
   FolderOpen,
   RefreshCw
 } from "lucide-react";
@@ -35,6 +34,17 @@ const categoryLabels: Record<DocumentCategory, string> = {
   COMPLETION: "준공 서류",
   OTHER: "기타",
 };
+
+// Fixed category display order
+const CATEGORY_ORDER: DocumentCategory[] = [
+  "CONTRACT",
+  "PERMIT",
+  "DRAWING",
+  "SCHEDULE",
+  "SITE_PHOTO",
+  "COMPLETION",
+  "OTHER",
+];
 
 async function getProject(id: string, userId: string) {
   try {
@@ -64,7 +74,7 @@ async function getProject(id: string, userId: string) {
             currentVersion: true,
           },
           orderBy: {
-            updatedAt: "desc",
+            title: "asc",
           },
         },
         activities: {
@@ -113,14 +123,47 @@ export default async function ClientProjectDetailPage({
     redirect("/projects");
   }
 
-  // Group documents by category
-  const documentsByCategory = project.documents.reduce((acc, doc) => {
-    if (!acc[doc.category]) {
-      acc[doc.category] = [];
+  // Sort documents by title and group by category (with custom category support)
+  const sortedDocs = [...project.documents].sort((a, b) =>
+    a.title.localeCompare(b.title, "ko")
+  );
+
+  // Group by category key (category or custom category for OTHER)
+  const documentsByCategory: { key: string; label: string; docs: typeof project.documents }[] = [];
+  const categoryMap = new Map<string, typeof project.documents>();
+
+  sortedDocs.forEach((doc) => {
+    const key = doc.category === "OTHER" && doc.customCategory
+      ? `CUSTOM:${doc.customCategory}`
+      : doc.category;
+    if (!categoryMap.has(key)) {
+      categoryMap.set(key, []);
     }
-    acc[doc.category].push(doc);
-    return acc;
-  }, {} as Record<DocumentCategory, typeof project.documents>);
+    categoryMap.get(key)!.push(doc);
+  });
+
+  // Add categories in fixed order
+  CATEGORY_ORDER.forEach((cat) => {
+    if (categoryMap.has(cat)) {
+      documentsByCategory.push({
+        key: cat,
+        label: categoryLabels[cat],
+        docs: categoryMap.get(cat)!,
+      });
+    }
+  });
+
+  // Add custom categories at the end
+  const customKeys = Array.from(categoryMap.keys())
+    .filter((k) => k.startsWith("CUSTOM:"))
+    .sort();
+  customKeys.forEach((key) => {
+    documentsByCategory.push({
+      key,
+      label: key.replace("CUSTOM:", ""),
+      docs: categoryMap.get(key)!,
+    });
+  });
 
   // Get last update date from activities or project updatedAt
   const lastUpdateDate = project.activities.length > 0
@@ -190,39 +233,6 @@ export default async function ClientProjectDetailPage({
         }))}
       />
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              등록된 문서
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <span className="text-2xl font-bold">{project.documents.length}</span>
-              <span className="text-muted-foreground">개</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              참여 인원
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-muted-foreground" />
-              <span className="text-2xl font-bold">{project.members.length}</span>
-              <span className="text-muted-foreground">명</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
@@ -245,40 +255,6 @@ export default async function ClientProjectDetailPage({
               )}
             </CardContent>
           </Card>
-
-          {/* Members */}
-          <Card>
-            <CardHeader>
-              <CardTitle>참여 인원</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {project.members.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {member.user?.name || member.invitedEmail || "알 수 없음"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {member.user?.email || member.invitedEmail}
-                        </p>
-                      </div>
-                    </div>
-                    {member.isOwner && (
-                      <Badge variant="secondary">사업주</Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="documents">
@@ -294,10 +270,10 @@ export default async function ClientProjectDetailPage({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(documentsByCategory).map(([category, docs]) => (
-                    <div key={category}>
+                  {documentsByCategory.map(({ key, label, docs }) => (
+                    <div key={key}>
                       <h3 className="font-semibold mb-3">
-                        {categoryLabels[category as DocumentCategory]}
+                        {label}
                       </h3>
                       <div className="space-y-2">
                         {docs.map((doc) => (

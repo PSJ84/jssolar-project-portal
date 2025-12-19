@@ -30,7 +30,7 @@ export function ClientSidebar({ userName }: ClientSidebarProps) {
   return (
     <div className="w-64 bg-white border-r min-h-screen flex flex-col">
       {/* Logo */}
-      <div className="p-6">
+      <div className="p-6 pb-4">
         <div className="flex items-center gap-2">
           <Sun className="h-6 w-6 text-solar-500" />
           <h1 className="text-xl font-bold text-primary">JSSolar</h1>
@@ -38,8 +38,18 @@ export function ClientSidebar({ userName }: ClientSidebarProps) {
         <p className="text-xs text-muted-foreground mt-1">태양광 프로젝트 포털</p>
       </div>
 
+      {/* User info */}
+      {userName && (
+        <div className="px-4 pb-4">
+          <Card className="p-3 bg-muted/50">
+            <p className="text-sm font-medium truncate">{userName}</p>
+            <p className="text-xs text-muted-foreground">사업주</p>
+          </Card>
+        </div>
+      )}
+
       {/* Navigation */}
-      <nav className="px-4 space-y-1 flex-1">
+      <nav className="px-4 space-y-1">
         {navigation.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
@@ -60,14 +70,8 @@ export function ClientSidebar({ userName }: ClientSidebarProps) {
         })}
       </nav>
 
-      {/* User info and Logout */}
-      <div className="p-4 border-t">
-        {userName && (
-          <Card className="p-3 mb-3 bg-muted/50">
-            <p className="text-sm font-medium truncate">{userName}</p>
-            <p className="text-xs text-muted-foreground">사업주</p>
-          </Card>
-        )}
+      {/* Logout */}
+      <div className="px-4 pt-4">
         <Button
           variant="outline"
           className="w-full justify-start gap-2"
@@ -77,6 +81,9 @@ export function ClientSidebar({ userName }: ClientSidebarProps) {
           로그아웃
         </Button>
       </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
     </div>
   );
 }

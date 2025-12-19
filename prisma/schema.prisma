@@ -121,6 +121,7 @@ model Document {
   projectId        String
   project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   category         DocumentCategory
+  customCategory   String?          // Custom category name (used when category is OTHER)
   title            String
   description      String?          @db.Text
   currentVersionId String?          @unique

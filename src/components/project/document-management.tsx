@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,9 +41,20 @@ const categoryColors: Record<DocumentCategory, string> = {
   OTHER: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
 };
 
-type TabCategory = "ALL" | DocumentCategory;
+// Fixed category display order
+const CATEGORY_ORDER: DocumentCategory[] = [
+  "CONTRACT",
+  "PERMIT",
+  "DRAWING",
+  "SCHEDULE",
+  "SITE_PHOTO",
+  "COMPLETION",
+  "OTHER",
+];
 
-const tabs: { value: TabCategory; label: string }[] = [
+type TabCategory = "ALL" | DocumentCategory | string; // string for custom categories
+
+const baseTabs: { value: TabCategory; label: string }[] = [
   { value: "ALL", label: "전체" },
   { value: "CONTRACT", label: "계약서" },
   { value: "PERMIT", label: "인허가" },
@@ -58,6 +69,7 @@ interface DocumentWithVersion {
   id: string;
   projectId: string;
   category: DocumentCategory;
+  customCategory: string | null;
   title: string;
   description: string | null;
   currentVersionId: string | null;
@@ -105,10 +117,68 @@ export function DocumentManagement({
   }>({ open: false, documentId: "", documentTitle: "", currentVersionId: null });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const filteredDocuments =
-    activeTab === "ALL"
-      ? documents
-      : documents.filter((doc) => doc.category === activeTab);
+  // Extract unique custom categories from documents
+  const customCategories = useMemo(() => {
+    const customs = new Set<string>();
+    documents.forEach((doc) => {
+      if (doc.category === "OTHER" && doc.customCategory) {
+        customs.add(doc.customCategory);
+      }
+    });
+    return Array.from(customs).sort();
+  }, [documents]);
+
+  // Generate tabs with custom categories
+  const tabs = useMemo(() => {
+    const result = [...baseTabs];
+    // Add custom category tabs after "기타"
+    customCategories.forEach((customCat) => {
+      result.push({ value: `CUSTOM:${customCat}`, label: customCat });
+    });
+    return result;
+  }, [customCategories]);
+
+  // Sort documents by title and filter
+  const sortedDocuments = useMemo(() => {
+    return [...documents].sort((a, b) => a.title.localeCompare(b.title, "ko"));
+  }, [documents]);
+
+  // Filter documents based on active tab
+  const filteredDocuments = useMemo(() => {
+    if (activeTab === "ALL") {
+      return sortedDocuments;
+    }
+    if (activeTab.startsWith("CUSTOM:")) {
+      const customCat = activeTab.replace("CUSTOM:", "");
+      return sortedDocuments.filter(
+        (doc) => doc.category === "OTHER" && doc.customCategory === customCat
+      );
+    }
+    if (activeTab === "OTHER") {
+      // Show only documents with category OTHER and NO custom category
+      return sortedDocuments.filter(
+        (doc) => doc.category === "OTHER" && !doc.customCategory
+      );
+    }
+    return sortedDocuments.filter((doc) => doc.category === activeTab);
+  }, [sortedDocuments, activeTab]);
+
+  // Count documents for each tab
+  const getTabCount = (tabValue: TabCategory) => {
+    if (tabValue === "ALL") return documents.length;
+    if (tabValue.startsWith("CUSTOM:")) {
+      const customCat = tabValue.replace("CUSTOM:", "");
+      return documents.filter(
+        (doc) => doc.category === "OTHER" && doc.customCategory === customCat
+      ).length;
+    }
+    if (tabValue === "OTHER") {
+      return documents.filter(
+        (doc) => doc.category === "OTHER" && !doc.customCategory
+      ).length;
+    }
+    return documents.filter((doc) => doc.category === tabValue).length;
+  };
 
   const handleDelete = async (documentId: string, documentTitle: string) => {
     if (!window.confirm(`"${documentTitle}" 문서를 삭제하시겠습니까?`)) {
@@ -166,18 +236,7 @@ export function DocumentManagement({
                   className="text-sm"
                 >
                   {tab.label}
-                  {tab.value === "ALL" ? (
-                    <span className="ml-1 text-xs">({documents.length})</span>
-                  ) : (
-                    <span className="ml-1 text-xs">
-                      (
-                      {
-                        documents.filter((d) => d.category === tab.value)
-                          .length
-                      }
-                      )
-                    </span>
-                  )}
+                  <span className="ml-1 text-xs">({getTabCount(tab.value)})</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -217,7 +276,9 @@ export function DocumentManagement({
                             variant="secondary"
                             className={categoryColors[doc.category]}
                           >
-                            {categoryLabels[doc.category]}
+                            {doc.category === "OTHER" && doc.customCategory
+                              ? doc.customCategory
+                              : categoryLabels[doc.category]}
                           </Badge>
                           {doc.currentVersion && (
                             <Badge variant="outline">
@@ -307,6 +368,7 @@ export function DocumentManagement({
         projectId={projectId}
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
+        existingCustomCategories={customCategories}
       />
 
       {/* Add Version Dialog */}

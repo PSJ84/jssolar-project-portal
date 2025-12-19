@@ -33,33 +33,54 @@ const categoryLabels: Record<DocumentCategory, string> = {
   OTHER: "기타",
 };
 
+// Category display order
+const CATEGORY_ORDER: DocumentCategory[] = [
+  "CONTRACT",
+  "PERMIT",
+  "DRAWING",
+  "SCHEDULE",
+  "SITE_PHOTO",
+  "COMPLETION",
+  "OTHER",
+];
+
 interface DocumentAddDialogProps {
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  existingCustomCategories?: string[];
 }
 
 export function DocumentAddDialog({
   projectId,
   open,
   onOpenChange,
+  existingCustomCategories = [],
 }: DocumentAddDialogProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     category: "" as DocumentCategory | "",
+    customCategory: "",
     description: "",
     fileUrl: "",
     fileName: "",
     note: "",
   });
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title || !formData.category || !formData.fileUrl || !formData.fileName) {
       alert("필수 항목을 모두 입력해주세요.");
+      return;
+    }
+
+    // Validate custom category when category is OTHER
+    if (formData.category === "OTHER" && showNewCategoryInput && !formData.customCategory.trim()) {
+      alert("새 카테고리 이름을 입력해주세요.");
       return;
     }
 
@@ -71,6 +92,7 @@ export function DocumentAddDialog({
         body: JSON.stringify({
           title: formData.title,
           category: formData.category,
+          customCategory: formData.category === "OTHER" ? formData.customCategory.trim() || null : null,
           description: formData.description || null,
           fileUrl: formData.fileUrl,
           fileName: formData.fileName,
@@ -82,11 +104,13 @@ export function DocumentAddDialog({
         setFormData({
           title: "",
           category: "",
+          customCategory: "",
           description: "",
           fileUrl: "",
           fileName: "",
           note: "",
         });
+        setShowNewCategoryInput(false);
         onOpenChange(false);
         router.refresh();
       } else {
@@ -131,23 +155,67 @@ export function DocumentAddDialog({
               카테고리 <span className="text-destructive">*</span>
             </Label>
             <Select
-              value={formData.category}
-              onValueChange={(value) =>
-                setFormData({ ...formData, category: value as DocumentCategory })
-              }
+              value={formData.category === "OTHER" && formData.customCategory && !showNewCategoryInput
+                ? `CUSTOM:${formData.customCategory}`
+                : formData.category}
+              onValueChange={(value) => {
+                if (value === "NEW_CUSTOM") {
+                  setFormData({ ...formData, category: "OTHER", customCategory: "" });
+                  setShowNewCategoryInput(true);
+                } else if (value.startsWith("CUSTOM:")) {
+                  const customCat = value.replace("CUSTOM:", "");
+                  setFormData({ ...formData, category: "OTHER", customCategory: customCat });
+                  setShowNewCategoryInput(false);
+                } else {
+                  setFormData({ ...formData, category: value as DocumentCategory, customCategory: "" });
+                  setShowNewCategoryInput(false);
+                }
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="카테고리 선택" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(categoryLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
+                {CATEGORY_ORDER.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {categoryLabels[cat]}
                   </SelectItem>
                 ))}
+                {existingCustomCategories.length > 0 && (
+                  <>
+                    <SelectItem value="---separator---" disabled className="text-muted-foreground text-xs">
+                      ── 커스텀 카테고리 ──
+                    </SelectItem>
+                    {existingCustomCategories.map((customCat) => (
+                      <SelectItem key={`CUSTOM:${customCat}`} value={`CUSTOM:${customCat}`}>
+                        {customCat}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+                <SelectItem value="NEW_CUSTOM" className="text-primary font-medium">
+                  + 새 카테고리 추가
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {showNewCategoryInput && (
+            <div className="space-y-2">
+              <Label htmlFor="customCategory">
+                새 카테고리 이름 <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="customCategory"
+                value={formData.customCategory}
+                onChange={(e) =>
+                  setFormData({ ...formData, customCategory: e.target.value })
+                }
+                placeholder="예: 구조검토서"
+                required
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">설명</Label>

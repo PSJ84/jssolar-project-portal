@@ -78,7 +78,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const categoryFilter = searchParams.get("category") as DocumentCategory | null;
 
-    // Fetch documents with current version
+    // Fetch documents with current version, sorted by title
     const documents = await prisma.document.findMany({
       where: {
         projectId,
@@ -102,7 +102,7 @@ export async function GET(
           },
         },
       },
-      orderBy: [{ category: "asc" }, { createdAt: "desc" }],
+      orderBy: [{ category: "asc" }, { title: "asc" }],
     });
 
     return NextResponse.json(documents);
@@ -137,7 +137,7 @@ export async function POST(
 
     const { id: projectId } = await params;
     const body = await request.json();
-    const { title, category, description, fileUrl, fileName, fileSizeBytes, mimeType, note } =
+    const { title, category, customCategory, description, fileUrl, fileName, fileSizeBytes, mimeType, note } =
       body;
 
     // Validate required fields
@@ -174,6 +174,7 @@ export async function POST(
           projectId,
           title,
           category,
+          customCategory: category === "OTHER" && customCategory ? customCategory : null,
           description: description || null,
         },
       });
@@ -217,7 +218,9 @@ export async function POST(
       });
 
       // Create activity log
-      const categoryLabel = CATEGORY_LABELS[category as DocumentCategory];
+      const categoryLabel = category === "OTHER" && customCategory
+        ? customCategory
+        : CATEGORY_LABELS[category as DocumentCategory];
       await tx.activity.create({
         data: {
           projectId,
@@ -228,6 +231,7 @@ export async function POST(
           metadata: {
             documentId: newDocument.id,
             category,
+            customCategory: customCategory || null,
             fileName,
             versionNumber: 1,
           },

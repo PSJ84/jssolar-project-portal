@@ -64,7 +64,7 @@ export default async function AdminProjectDetailPage({
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { title: "asc" },
       },
       activities: {
         include: {
