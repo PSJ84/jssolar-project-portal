@@ -22,6 +22,26 @@ export default function LoginPage() {
     setError("");
 
     try {
+      // First, check rate limit and validate credentials via API
+      const validateResponse = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (validateResponse.status === 429) {
+        const data = await validateResponse.json();
+        setError(data.error || "너무 많은 로그인 시도입니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
+      if (!validateResponse.ok) {
+        const data = await validateResponse.json();
+        setError(data.error || "아이디 또는 비밀번호가 올바르지 않습니다.");
+        return;
+      }
+
+      // Credentials valid, now sign in with NextAuth
       const result = await signIn("credentials", {
         username,
         password,
