@@ -55,8 +55,8 @@ export default async function ClientProjectsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">내 프로젝트</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl md:text-3xl font-bold">내 프로젝트</h1>
+        <p className="text-muted-foreground mt-1 text-sm md:text-base">
           참여 중인 프로젝트의 진행 상황을 확인할 수 있습니다.
         </p>
       </div>
@@ -69,7 +69,7 @@ export default async function ClientProjectsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <ProjectCard
               key={project.id}

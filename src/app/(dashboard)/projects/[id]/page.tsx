@@ -182,8 +182,8 @@ export default async function ClientProjectDetailPage({
 
       {/* Header */}
       <div>
-        <div className="flex items-start justify-between">
-          <h1 className="text-3xl font-bold">{project.name}</h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="text-xl md:text-3xl font-bold">{project.name}</h1>
           <Badge
             variant={
               project.status === "ACTIVE"
@@ -192,11 +192,12 @@ export default async function ClientProjectDetailPage({
                 ? "secondary"
                 : "outline"
             }
+            className="shrink-0"
           >
             {statusLabels[project.status]}
           </Badge>
         </div>
-        <div className="flex flex-wrap items-center gap-4 mt-2">
+        <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-2 text-sm">
           {project.location && (
             <div className="flex items-center text-muted-foreground">
               <MapPin className="h-4 w-4 mr-1" />
@@ -215,7 +216,7 @@ export default async function ClientProjectDetailPage({
           </div>
           <div className="flex items-center text-muted-foreground">
             <RefreshCw className="h-4 w-4 mr-1" />
-            최근 업데이트: {lastUpdateDate.toLocaleDateString("ko-KR")}
+            <span className="hidden sm:inline">최근 업데이트:</span> {lastUpdateDate.toLocaleDateString("ko-KR")}
           </div>
         </div>
       </div>

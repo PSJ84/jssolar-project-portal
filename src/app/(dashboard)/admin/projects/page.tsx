@@ -36,14 +36,14 @@ export default async function AdminProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">프로젝트 관리</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold">프로젝트 관리</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
             모든 프로젝트를 관리할 수 있습니다.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/admin/projects/new">
             <Plus className="h-4 w-4 mr-2" />
             새 프로젝트

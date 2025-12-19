@@ -115,26 +115,24 @@ export default async function AdminProjectDetailPage({
       </Button>
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{project.name}</h1>
-          <div className="flex items-center gap-4 mt-2 flex-wrap">
-            {project.location && (
-              <div className="flex items-center text-muted-foreground">
-                <MapPin className="h-4 w-4 mr-1" />
-                {project.location}
-              </div>
-            )}
-            {project.capacityKw && (
-              <div className="flex items-center text-muted-foreground">
-                <Zap className="h-4 w-4 mr-1" />
-                {project.capacityKw.toLocaleString()} kW
-              </div>
-            )}
+      <div>
+        <h1 className="text-xl md:text-3xl font-bold">{project.name}</h1>
+        <div className="flex items-center gap-2 md:gap-4 mt-2 flex-wrap text-sm">
+          {project.location && (
             <div className="flex items-center text-muted-foreground">
-              <Calendar className="h-4 w-4 mr-1" />
-              {new Date(project.createdAt).toLocaleDateString("ko-KR")}
+              <MapPin className="h-4 w-4 mr-1" />
+              {project.location}
             </div>
+          )}
+          {project.capacityKw && (
+            <div className="flex items-center text-muted-foreground">
+              <Zap className="h-4 w-4 mr-1" />
+              {project.capacityKw.toLocaleString()} kW
+            </div>
+          )}
+          <div className="flex items-center text-muted-foreground">
+            <Calendar className="h-4 w-4 mr-1" />
+            {new Date(project.createdAt).toLocaleDateString("ko-KR")}
           </div>
         </div>
       </div>
@@ -154,7 +152,7 @@ export default async function AdminProjectDetailPage({
       />
 
       {/* Status Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">

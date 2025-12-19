@@ -36,7 +36,7 @@ export function Header({ userName, userRole }: HeaderProps) {
   const roleLabel = userRole === "ADMIN" ? "관리자" : "사업주";
 
   return (
-    <header className="h-16 border-b bg-white flex items-center justify-between px-6">
+    <header className="hidden md:flex h-16 border-b bg-white items-center justify-between px-6">
       <div className="flex items-center gap-2">
         {userRole && (
           <Badge variant={userRole === "ADMIN" ? "default" : "secondary"}>

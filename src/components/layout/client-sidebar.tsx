@@ -28,7 +28,7 @@ export function ClientSidebar({ userName }: ClientSidebarProps) {
   };
 
   return (
-    <div className="w-64 bg-white border-r min-h-screen flex flex-col">
+    <div className="hidden md:flex w-64 bg-white border-r min-h-screen flex-col">
       {/* Logo */}
       <div className="p-6 pb-4">
         <div className="flex items-center gap-2">
