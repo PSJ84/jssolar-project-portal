@@ -84,15 +84,13 @@ export async function PUT(
 
     // Update display order for each task in a transaction
     const updatedTasks = await prisma.$transaction(async (tx) => {
-      // Update each task's displayOrder
-      const updatePromises = taskIds.map((taskId: string, index: number) =>
-        tx.projectTask.update({
-          where: { id: taskId },
+      // Update each task's displayOrder sequentially to avoid transaction timeout
+      for (let index = 0; index < taskIds.length; index++) {
+        await tx.projectTask.update({
+          where: { id: taskIds[index] },
           data: { displayOrder: index },
-        })
-      );
-
-      await Promise.all(updatePromises);
+        });
+      }
 
       // Fetch all tasks with new order
       const tasks = await tx.projectTask.findMany({

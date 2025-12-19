@@ -1,21 +1,22 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProjectForm } from "@/components/project/project-form";
-import { Project } from "@/types";
 
-async function getProject(id: string): Promise<Project | null> {
+async function getProject(id: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003";
-    const response = await fetch(`${baseUrl}/api/projects/${id}`, {
-      cache: "no-store",
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        capacityKw: true,
+      },
     });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return response.json();
+    return project;
   } catch (error) {
     console.error("Error fetching project:", error);
     return null;
@@ -25,7 +26,7 @@ async function getProject(id: string): Promise<Project | null> {
 export default async function EditProjectPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await auth();
 
@@ -33,7 +34,8 @@ export default async function EditProjectPage({
     redirect("/projects");
   }
 
-  const project = await getProject(params.id);
+  const { id } = await params;
+  const project = await getProject(id);
 
   if (!project) {
     notFound();

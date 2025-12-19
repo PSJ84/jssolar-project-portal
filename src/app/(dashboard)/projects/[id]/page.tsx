@@ -182,6 +182,7 @@ export default async function ClientProjectDetailPage({
         tasks={project.tasks.map((task) => ({
           id: task.id,
           taskType: task.taskType,
+          customName: task.customName,
           status: task.status,
           displayOrder: task.displayOrder,
           note: task.note,

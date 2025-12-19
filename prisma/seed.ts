@@ -297,11 +297,13 @@ async function main() {
       STRUCTURE_DRAWING: { status: 'IN_PROGRESS' },
       ELECTRICAL_DRAWING: { status: 'IN_PROGRESS' },
       CONSTRUCTION_PLAN: { status: 'SUBMITTED' },
+      CONSTRUCTION: { status: 'NOT_STARTED' },
       PPA_APPLICATION: { status: 'NOT_STARTED' },
       PRE_USE_INSPECTION: { status: 'NOT_STARTED' },
       DEVELOPMENT_COMPLETION: { status: 'NOT_STARTED' },
       BUSINESS_START: { status: 'NOT_STARTED' },
       FACILITY_CONFIRM: { status: 'NOT_STARTED' },
+      CUSTOM: { status: 'NOT_STARTED' },
     };
 
     const tasksData = DEFAULT_TASK_ORDER.map((taskType, index) => ({

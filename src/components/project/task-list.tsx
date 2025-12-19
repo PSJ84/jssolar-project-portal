@@ -13,12 +13,22 @@ const taskTypeLabels: Record<string, string> = {
   STRUCTURE_DRAWING: "구조물도면/구조검토",
   ELECTRICAL_DRAWING: "전기도면",
   CONSTRUCTION_PLAN: "공사계획신고",
+  CONSTRUCTION: "시공",
   PPA_APPLICATION: "PPA신청",
   PRE_USE_INSPECTION: "사용전검사",
   DEVELOPMENT_COMPLETION: "개발행위준공",
   BUSINESS_START: "사업개시신고",
   FACILITY_CONFIRM: "설비확인",
+  CUSTOM: "커스텀 단계",
 };
+
+// Get display name for a task (customName takes priority)
+function getTaskDisplayName(taskType: string, customName?: string | null): string {
+  if (customName) {
+    return customName;
+  }
+  return taskTypeLabels[taskType] || taskType;
+}
 
 // Task status labels in Korean
 const taskStatusLabels: Record<string, string> = {
@@ -31,6 +41,7 @@ const taskStatusLabels: Record<string, string> = {
 interface Task {
   id: string;
   taskType: string;
+  customName: string | null;
   status: string;
   displayOrder: number;
   note: string | null;
@@ -134,7 +145,7 @@ export function TaskList({ tasks }: TaskListProps) {
                       task.status === "NOT_STARTED" && "text-muted-foreground"
                     )}
                   >
-                    {taskTypeLabels[task.taskType] || task.taskType}
+                    {getTaskDisplayName(task.taskType, task.customName)}
                   </span>
                   {/* Status Badge - visible on mobile */}
                   <span className="md:hidden">{getStatusBadge(task.status)}</span>

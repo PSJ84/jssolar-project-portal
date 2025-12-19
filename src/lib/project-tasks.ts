@@ -10,6 +10,7 @@ export const DEFAULT_TASK_ORDER: TaskType[] = [
   "STRUCTURE_DRAWING",
   "ELECTRICAL_DRAWING",
   "CONSTRUCTION_PLAN",
+  "CONSTRUCTION",
   "PPA_APPLICATION",
   "PRE_USE_INSPECTION",
   "DEVELOPMENT_COMPLETION",
@@ -26,12 +27,26 @@ export const taskTypeLabels: Record<TaskType, string> = {
   STRUCTURE_DRAWING: "구조물도면/구조검토",
   ELECTRICAL_DRAWING: "전기도면",
   CONSTRUCTION_PLAN: "공사계획신고",
+  CONSTRUCTION: "시공",
   PPA_APPLICATION: "PPA신청",
   PRE_USE_INSPECTION: "사용전검사",
   DEVELOPMENT_COMPLETION: "개발행위준공",
   BUSINESS_START: "사업개시신고",
   FACILITY_CONFIRM: "설비확인",
+  CUSTOM: "커스텀 단계",
 };
+
+/**
+ * Gets the display name for a task
+ * - If customName exists, use it
+ * - Otherwise use the default label for the taskType
+ */
+export function getTaskDisplayName(taskType: TaskType, customName?: string | null): string {
+  if (customName) {
+    return customName;
+  }
+  return taskTypeLabels[taskType] || taskType;
+}
 
 // Korean labels for task statuses
 export const taskStatusLabels: Record<TaskStatus, string> = {
