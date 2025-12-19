@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth User model with role-based access
+model User {
+  id                 String             @id @default(cuid())
+  name               String?
+  email              String             @unique
+  emailVerified      DateTime?
+  image              String?
+  password           String?            // Hashed password for credentials login
+  role               UserRole           @default(CLIENT)
+  accounts           Account[]
+  sessions           Session[]
+  projectMemberships ProjectMember[]
+  uploadedDocuments  DocumentVersion[]
+  activities         Activity[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+// NextAuth Account model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// NextAuth Session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// NextAuth VerificationToken model (for magic link)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Solar project information
+model Project {
+  id              String          @id @default(cuid())
+  name            String
+  description     String?         @db.Text
+  location        String?
+  capacityKw      Float?          // Solar installation capacity in kW
+  currentPhase    ProjectPhase    @default(CONTRACT)
+  progressPercent Int             @default(0) // 0-100
+  status          ProjectStatus   @default(ACTIVE)
+  members         ProjectMember[]
+  documents       Document[]
+  activities      Activity[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+// Many-to-many relationship between Users and Projects
+model ProjectMember {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedEmail String?  // Email for invited users who haven't registered yet
+  isOwner      Boolean  @default(false) // Project owner (사업주)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+  @@index([invitedEmail])
+}
+
+// Document metadata (versioned documents)
+model Document {
+  id               String           @id @default(cuid())
+  projectId        String
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category         DocumentCategory
+  title            String
+  description      String?          @db.Text
+  currentVersionId String?          @unique
+  currentVersion   DocumentVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  versions         DocumentVersion[] @relation("DocumentVersions")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([projectId])
+  @@index([category])
+}
+
+// Document version history
+model DocumentVersion {
+  id                    String    @id @default(cuid())
+  documentId            String
+  document              Document  @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  currentVersionOfDoc   Document? @relation("CurrentVersion")
+  versionNumber         Int
+  fileUrl               String
+  fileName              String
+  fileSizeBytes         Int?
+  mimeType              String?
+  note                  String?   @db.Text
+  uploadedById          String
+  uploadedBy            User      @relation(fields: [uploadedById], references: [id])
+  createdAt             DateTime  @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId])
+}
+
+// Activity log for project timeline
+model Activity {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type        String   // e.g., "project_created", "document_uploaded", "phase_changed"
+  title       String
+  description String?  @db.Text
+  metadata    Json?    // Additional structured data
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+// User roles
+enum UserRole {
+  ADMIN   // Administrator - full access
+  CLIENT  // Project owner (사업주) - read-only access
+}
+
+// Project phases in solar installation lifecycle
+enum ProjectPhase {
+  CONTRACT     // 계약
+  PERMIT       // 인허가
+  DESIGN       // 설계
+  CONSTRUCTION // 시공
+  COMPLETION   // 준공
+}
+
+// Project status
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+// Document categories
+enum DocumentCategory {
+  CONTRACT      // 계약서
+  PERMIT        // 인허가 서류
+  DRAWING       // 도면
+  SCHEDULE      // 공정표
+  SITE_PHOTO    // 현장 사진
+  COMPLETION    // 준공 서류
+  OTHER         // 기타
+}
