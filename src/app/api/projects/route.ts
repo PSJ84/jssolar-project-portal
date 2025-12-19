@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
+import { createDefaultTasks } from "@/lib/project-tasks";
 
 // GET /api/projects - 프로젝트 목록 조회
 // ADMIN: 전체 프로젝트
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 프로젝트 생성 및 Activity 로그 기록을 트랜잭션으로 처리
+    // 프로젝트 생성, 기본 태스크 생성 및 Activity 로그 기록을 트랜잭션으로 처리
     const project = await prisma.$transaction(async (tx) => {
       const newProject = await tx.project.create({
         data: {
@@ -125,6 +126,9 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
+      // 기본 태스크 생성
+      await createDefaultTasks(tx, newProject.id);
 
       // Activity 로그 생성
       await tx.activity.create({

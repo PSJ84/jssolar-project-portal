@@ -23,17 +23,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Project, ProjectPhase, ProjectStatus } from "@prisma/client";
+import { Project, ProjectStatus } from "@prisma/client";
 import { Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-
-const phaseLabels: Record<ProjectPhase, string> = {
-  CONTRACT: "계약",
-  PERMIT: "인허가",
-  DESIGN: "설계",
-  CONSTRUCTION: "시공",
-  COMPLETION: "준공",
-};
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -80,7 +72,6 @@ export function ProjectTable({ projects }: ProjectTableProps) {
               <TableHead>프로젝트명</TableHead>
               <TableHead>위치</TableHead>
               <TableHead>용량</TableHead>
-              <TableHead>현재 단계</TableHead>
               <TableHead>진행률</TableHead>
               <TableHead>상태</TableHead>
               <TableHead>생성일</TableHead>
@@ -90,7 +81,7 @@ export function ProjectTable({ projects }: ProjectTableProps) {
           <TableBody>
             {projects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   등록된 프로젝트가 없습니다.
                 </TableCell>
               </TableRow>
@@ -110,11 +101,6 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                     {project.capacityKw
                       ? `${project.capacityKw.toLocaleString()} kW`
                       : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {phaseLabels[project.currentPhase]}
-                    </Badge>
                   </TableCell>
                   <TableCell>{project.progressPercent}%</TableCell>
                   <TableCell>

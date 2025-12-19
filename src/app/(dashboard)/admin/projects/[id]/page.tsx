@@ -4,18 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProjectPhase, ProjectStatus } from "@prisma/client";
-import { Edit, MapPin, Zap, Calendar, ArrowLeft, FileText, Users, Clock, ExternalLink } from "lucide-react";
+import { ProjectStatus } from "@prisma/client";
+import { Edit, MapPin, Zap, Calendar, ArrowLeft, Users, Clock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
-
-const phaseLabels: Record<ProjectPhase, string> = {
-  CONTRACT: "계약",
-  PERMIT: "인허가",
-  DESIGN: "설계",
-  CONSTRUCTION: "시공",
-  COMPLETION: "준공",
-};
+import { DocumentManagement } from "@/components/project/document-management";
+import { TaskManagement } from "@/components/project/task-management";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -23,15 +17,6 @@ const statusLabels: Record<ProjectStatus, string> = {
   ARCHIVED: "보관",
 };
 
-const categoryLabels: Record<string, string> = {
-  CONTRACT: "계약서",
-  PERMIT: "인허가 서류",
-  DRAWING: "도면",
-  SCHEDULE: "공정표",
-  SITE_PHOTO: "현장 사진",
-  COMPLETION: "준공 서류",
-  OTHER: "기타",
-};
 
 function formatRelativeTime(date: Date): string {
   const now = new Date();
@@ -90,6 +75,9 @@ export default async function AdminProjectDetailPage({
         orderBy: { createdAt: "desc" },
         take: 20,
       },
+      tasks: {
+        orderBy: { displayOrder: "asc" },
+      },
     },
   });
 
@@ -114,14 +102,6 @@ export default async function AdminProjectDetailPage({
     },
     orderBy: { name: "asc" },
   });
-
-  // Group documents by category
-  const documentsByCategory = project.documents.reduce((acc, doc) => {
-    const category = doc.category;
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(doc);
-    return acc;
-  }, {} as Record<string, typeof project.documents>);
 
   return (
     <div className="space-y-6">
@@ -166,21 +146,21 @@ export default async function AdminProjectDetailPage({
         </div>
       </div>
 
-      {/* Status Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              현재 단계
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge className="text-base">
-              {phaseLabels[project.currentPhase]}
-            </Badge>
-          </CardContent>
-        </Card>
+      {/* Task Management - Checklist */}
+      <TaskManagement
+        projectId={project.id}
+        tasks={project.tasks.map((task) => ({
+          id: task.id,
+          taskType: task.taskType,
+          status: task.status,
+          displayOrder: task.displayOrder,
+          note: task.note,
+          completedAt: task.completedAt?.toISOString() ?? null,
+        }))}
+      />
 
+      {/* Status Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -252,90 +232,13 @@ export default async function AdminProjectDetailPage({
               )}
             </CardContent>
           </Card>
-
-          {/* Phase Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle>진행 단계</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                {Object.entries(phaseLabels).map(([phase, label], index) => {
-                  const phases = Object.keys(phaseLabels);
-                  const currentIndex = phases.indexOf(project.currentPhase);
-                  const isComplete = index < currentIndex;
-                  const isCurrent = index === currentIndex;
-
-                  return (
-                    <div key={phase} className="flex flex-col items-center flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
-                          isComplete
-                            ? "bg-green-500 text-white"
-                            : isCurrent
-                            ? "bg-blue-500 text-white"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {index + 1}
-                      </div>
-                      <span className={`mt-2 text-xs ${isCurrent ? "font-bold" : ""}`}>
-                        {label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="documents">
-          <Card>
-            <CardHeader>
-              <CardTitle>문서 목록</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {project.documents.length === 0 ? (
-                <p className="text-muted-foreground">등록된 문서가 없습니다.</p>
-              ) : (
-                <div className="space-y-6">
-                  {Object.entries(documentsByCategory).map(([category, docs]) => (
-                    <div key={category}>
-                      <h4 className="font-medium mb-3">{categoryLabels[category] || category}</h4>
-                      <div className="space-y-2">
-                        {docs.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                          >
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-5 w-5 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium">{doc.title}</p>
-                                {doc.currentVersion && (
-                                  <p className="text-sm text-muted-foreground">
-                                    v{doc.currentVersion.versionNumber} - {doc.currentVersion.uploadedBy?.name || "알 수 없음"}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            {doc.currentVersion?.fileUrl && (
-                              <Button variant="ghost" size="sm" asChild>
-                                <a href={doc.currentVersion.fileUrl} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <DocumentManagement
+            projectId={project.id}
+            documents={project.documents}
+          />
         </TabsContent>
 
         <TabsContent value="members">

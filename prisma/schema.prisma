@@ -70,14 +70,31 @@ model Project {
   description     String?         @db.Text
   location        String?
   capacityKw      Float?          // Solar installation capacity in kW
-  currentPhase    ProjectPhase    @default(CONTRACT)
-  progressPercent Int             @default(0) // 0-100
+  progressPercent Int             @default(0) // 0-100 (calculated from completed tasks)
   status          ProjectStatus   @default(ACTIVE)
   members         ProjectMember[]
   documents       Document[]
   activities      Activity[]
+  tasks           ProjectTask[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+}
+
+// Project task checklist
+model ProjectTask {
+  id           String      @id @default(cuid())
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskType     TaskType
+  status       TaskStatus  @default(NOT_STARTED)
+  displayOrder Int         // Display order
+  note         String?     @db.Text
+  completedAt  DateTime?   // Completion date
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([projectId, taskType])
+  @@index([projectId])
 }
 
 // Many-to-many relationship between Users and Projects
@@ -157,13 +174,28 @@ enum UserRole {
   CLIENT  // Project owner (사업주) - read-only access
 }
 
-// Project phases in solar installation lifecycle
-enum ProjectPhase {
-  CONTRACT     // 계약
-  PERMIT       // 인허가
-  DESIGN       // 설계
-  CONSTRUCTION // 시공
-  COMPLETION   // 준공
+// Project task types (checklist items)
+enum TaskType {
+  SITE_SURVEY           // 현장실측/조사
+  BUSINESS_PERMIT       // 발전사업허가
+  DEVELOPMENT_PERMIT    // 개발행위허가
+  CONTRACT              // 도급계약
+  STRUCTURE_DRAWING     // 구조물도면/구조검토
+  ELECTRICAL_DRAWING    // 전기도면
+  CONSTRUCTION_PLAN     // 공사계획신고
+  PPA_APPLICATION       // PPA신청
+  PRE_USE_INSPECTION    // 사용전검사
+  DEVELOPMENT_COMPLETION // 개발행위준공
+  BUSINESS_START        // 사업개시신고
+  FACILITY_CONFIRM      // 설비확인
+}
+
+// Project task status
+enum TaskStatus {
+  NOT_STARTED   // 대기
+  IN_PROGRESS   // 진행중
+  SUBMITTED     // 접수
+  COMPLETED     // 완료
 }
 
 // Project status

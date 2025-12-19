@@ -133,8 +133,6 @@ export async function PATCH(
       description,
       location,
       capacityKw,
-      currentPhase,
-      progressPercent,
       status,
     } = body;
 
@@ -159,16 +157,6 @@ export async function PATCH(
       metadata.oldName = existingProject.name;
       metadata.newName = name;
     }
-    if (currentPhase && currentPhase !== existingProject.currentPhase) {
-      changes.push(`단계: ${existingProject.currentPhase} → ${currentPhase}`);
-      metadata.oldPhase = existingProject.currentPhase;
-      metadata.newPhase = currentPhase;
-    }
-    if (progressPercent !== undefined && progressPercent !== existingProject.progressPercent) {
-      changes.push(`진행률: ${existingProject.progressPercent}% → ${progressPercent}%`);
-      metadata.oldProgress = existingProject.progressPercent;
-      metadata.newProgress = progressPercent;
-    }
     if (status && status !== existingProject.status) {
       changes.push(`상태: ${existingProject.status} → ${status}`);
       metadata.oldStatus = existingProject.status;
@@ -184,8 +172,6 @@ export async function PATCH(
           ...(description !== undefined && { description }),
           ...(location !== undefined && { location }),
           ...(capacityKw !== undefined && { capacityKw: capacityKw ? parseFloat(capacityKw) : null }),
-          ...(currentPhase && { currentPhase }),
-          ...(progressPercent !== undefined && { progressPercent }),
           ...(status && { status }),
         },
         include: {

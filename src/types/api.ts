@@ -1,4 +1,4 @@
-import { Project, ProjectMember, Activity, User, ProjectPhase, ProjectStatus, DocumentCategory } from "@prisma/client";
+import { Project, ProjectMember, Activity, User, ProjectStatus, DocumentCategory, ProjectTask, TaskType, TaskStatus } from "@prisma/client";
 
 /**
  * API 에러 응답 타입
@@ -57,9 +57,37 @@ export interface UpdateProjectRequest {
   description?: string;
   location?: string;
   capacityKw?: number;
-  currentPhase?: ProjectPhase;
-  progressPercent?: number;
   status?: ProjectStatus;
+}
+
+/**
+ * 태스크 (with labels)
+ */
+export interface ProjectTaskWithLabels extends ProjectTask {
+  taskTypeLabel: string;
+  statusLabel: string;
+}
+
+/**
+ * 태스크 업데이트 요청
+ */
+export interface UpdateTaskRequest {
+  status?: TaskStatus;
+  note?: string;
+}
+
+/**
+ * 태스크 업데이트 응답
+ */
+export interface UpdateTaskResponse extends ProjectTaskWithLabels {
+  projectProgressPercent: number;
+}
+
+/**
+ * 태스크 순서 변경 요청
+ */
+export interface ReorderTasksRequest {
+  taskIds: string[];
 }
 
 /**

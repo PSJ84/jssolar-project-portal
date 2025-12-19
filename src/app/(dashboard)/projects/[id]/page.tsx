@@ -5,29 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { prisma } from "@/lib/prisma";
-import { ProjectPhase, ProjectStatus, DocumentCategory } from "@prisma/client";
+import { ProjectStatus, DocumentCategory } from "@prisma/client";
 import {
   MapPin,
   Zap,
   Calendar,
   FileText,
   ExternalLink,
-  Clock,
-  CheckCircle2,
   ArrowLeft,
   User,
-  FolderOpen
+  FolderOpen,
+  RefreshCw
 } from "lucide-react";
-
-const phaseLabels: Record<ProjectPhase, string> = {
-  CONTRACT: "계약",
-  PERMIT: "인허가",
-  DESIGN: "설계",
-  CONSTRUCTION: "시공",
-  COMPLETION: "준공",
-};
+import { TaskList } from "@/components/project/task-list";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -89,6 +80,11 @@ async function getProject(id: string, userId: string) {
           },
           take: 20,
         },
+        tasks: {
+          orderBy: {
+            displayOrder: "asc",
+          },
+        },
       },
     });
     return project;
@@ -117,10 +113,6 @@ export default async function ClientProjectDetailPage({
     redirect("/projects");
   }
 
-  // Calculate phase steps
-  const phases: ProjectPhase[] = ["CONTRACT", "PERMIT", "DESIGN", "CONSTRUCTION", "COMPLETION"];
-  const currentPhaseIndex = phases.indexOf(project.currentPhase);
-
   // Group documents by category
   const documentsByCategory = project.documents.reduce((acc, doc) => {
     if (!acc[doc.category]) {
@@ -130,20 +122,10 @@ export default async function ClientProjectDetailPage({
     return acc;
   }, {} as Record<DocumentCategory, typeof project.documents>);
 
-  // Format relative time for activities
-  const formatRelativeTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return "방금 전";
-    if (minutes < 60) return `${minutes}분 전`;
-    if (hours < 24) return `${hours}시간 전`;
-    if (days < 7) return `${days}일 전`;
-    return new Date(date).toLocaleDateString("ko-KR");
-  };
+  // Get last update date from activities or project updatedAt
+  const lastUpdateDate = project.activities.length > 0
+    ? new Date(project.activities[0].createdAt)
+    : new Date(project.updatedAt);
 
   return (
     <div className="space-y-6">
@@ -188,116 +170,27 @@ export default async function ClientProjectDetailPage({
             <Calendar className="h-4 w-4 mr-1" />
             {new Date(project.createdAt).toLocaleDateString("ko-KR")}
           </div>
+          <div className="flex items-center text-muted-foreground">
+            <RefreshCw className="h-4 w-4 mr-1" />
+            최근 업데이트: {lastUpdateDate.toLocaleDateString("ko-KR")}
+          </div>
         </div>
       </div>
 
-      {/* Phase Stepper */}
-      <Card>
-        <CardHeader>
-          <CardTitle>프로젝트 단계</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Desktop Stepper */}
-            <div className="hidden md:flex justify-between items-center">
-              {phases.map((phase, index) => (
-                <div key={phase} className="flex flex-col items-center flex-1">
-                  <div className="flex items-center w-full">
-                    {index > 0 && (
-                      <div
-                        className={`flex-1 h-1 ${
-                          index <= currentPhaseIndex
-                            ? "bg-primary"
-                            : "bg-muted"
-                        }`}
-                      />
-                    )}
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold shrink-0 ${
-                        index <= currentPhaseIndex
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {index < currentPhaseIndex ? (
-                        <CheckCircle2 className="h-5 w-5" />
-                      ) : (
-                        index + 1
-                      )}
-                    </div>
-                    {index < phases.length - 1 && (
-                      <div
-                        className={`flex-1 h-1 ${
-                          index < currentPhaseIndex
-                            ? "bg-primary"
-                            : "bg-muted"
-                        }`}
-                      />
-                    )}
-                  </div>
-                  <div className="text-xs mt-2 text-center font-medium">
-                    {phaseLabels[phase]}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Mobile Stepper */}
-            <div className="md:hidden space-y-2">
-              {phases.map((phase, index) => (
-                <div key={phase} className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${
-                      index <= currentPhaseIndex
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {index < currentPhaseIndex ? (
-                      <CheckCircle2 className="h-4 w-4" />
-                    ) : (
-                      index + 1
-                    )}
-                  </div>
-                  <span
-                    className={`text-sm ${
-                      index === currentPhaseIndex
-                        ? "font-semibold"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {phaseLabels[phase]}
-                    {index === currentPhaseIndex && " (현재)"}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {/* Progress Bar */}
-            <div className="space-y-2 pt-4 border-t">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">전체 진행률</span>
-                <span className="font-medium">{project.progressPercent}%</span>
-              </div>
-              <Progress value={project.progressPercent} className="h-2" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Task List - Read-only Checklist */}
+      <TaskList
+        tasks={project.tasks.map((task) => ({
+          id: task.id,
+          taskType: task.taskType,
+          status: task.status,
+          displayOrder: task.displayOrder,
+          note: task.note,
+          completedAt: task.completedAt?.toISOString() ?? null,
+        }))}
+      />
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              현재 단계
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge className="text-base">
-              {phaseLabels[project.currentPhase]}
-            </Badge>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -335,9 +228,6 @@ export default async function ClientProjectDetailPage({
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
-          </TabsTrigger>
-          <TabsTrigger value="activity">
-            활동 ({project.activities.length})
           </TabsTrigger>
         </TabsList>
 
@@ -417,7 +307,14 @@ export default async function ClientProjectDetailPage({
                             <div className="flex items-center gap-3">
                               <FileText className="h-5 w-5 text-muted-foreground" />
                               <div>
-                                <p className="font-medium">{doc.title}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{doc.title}</p>
+                                  {doc.currentVersion && (
+                                    <span className="text-xs text-muted-foreground">
+                                      v{doc.currentVersion.versionNumber}
+                                    </span>
+                                  )}
+                                </div>
                                 {doc.description && (
                                   <p className="text-sm text-muted-foreground line-clamp-1">
                                     {doc.description}
@@ -445,55 +342,6 @@ export default async function ClientProjectDetailPage({
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="activity">
-          <Card>
-            <CardHeader>
-              <CardTitle>활동 기록</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {project.activities.length === 0 ? (
-                <div className="text-center py-8">
-                  <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">활동 기록이 없습니다.</p>
-                </div>
-              ) : (
-                <div className="relative">
-                  {/* Timeline line */}
-                  <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
-                  <div className="space-y-4">
-                    {project.activities.map((activity) => (
-                      <div key={activity.id} className="relative pl-10">
-                        {/* Timeline dot */}
-                        <div className="absolute left-2.5 w-3 h-3 rounded-full bg-primary border-2 border-background" />
-                        <div className="p-3 rounded-lg bg-muted/50">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-medium">{activity.title}</p>
-                              {activity.description && (
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {activity.description}
-                                </p>
-                              )}
-                            </div>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {formatRelativeTime(activity.createdAt)}
-                            </span>
-                          </div>
-                          {activity.user && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {activity.user.name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
             </CardContent>

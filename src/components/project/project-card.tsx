@@ -2,23 +2,19 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Project, ProjectPhase } from "@prisma/client";
+import { Project, ProjectStatus } from "@prisma/client";
 import { MapPin, Zap } from "lucide-react";
 
-const phaseLabels: Record<ProjectPhase, string> = {
-  CONTRACT: "계약",
-  PERMIT: "인허가",
-  DESIGN: "설계",
-  CONSTRUCTION: "시공",
-  COMPLETION: "준공",
+const statusLabels: Record<ProjectStatus, string> = {
+  ACTIVE: "진행중",
+  COMPLETED: "완료",
+  ARCHIVED: "보관됨",
 };
 
-const phaseColors: Record<ProjectPhase, string> = {
-  CONTRACT: "bg-blue-500",
-  PERMIT: "bg-yellow-500",
-  DESIGN: "bg-purple-500",
-  CONSTRUCTION: "bg-orange-500",
-  COMPLETION: "bg-green-500",
+const statusColors: Record<ProjectStatus, string> = {
+  ACTIVE: "bg-blue-500",
+  COMPLETED: "bg-green-500",
+  ARCHIVED: "bg-gray-500",
 };
 
 interface ProjectCardProps {
@@ -33,8 +29,8 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
         <CardHeader>
           <div className="flex items-start justify-between">
             <CardTitle className="text-lg">{project.name}</CardTitle>
-            <Badge className={phaseColors[project.currentPhase]}>
-              {phaseLabels[project.currentPhase]}
+            <Badge className={statusColors[project.status]}>
+              {statusLabels[project.status]}
             </Badge>
           </div>
         </CardHeader>

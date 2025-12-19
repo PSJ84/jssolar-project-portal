@@ -1,6 +1,6 @@
-import { UserRole, ProjectPhase, ProjectStatus, DocumentCategory } from "@prisma/client";
+import { UserRole, ProjectStatus, DocumentCategory, TaskType, TaskStatus } from "@prisma/client";
 
-export type { UserRole, ProjectPhase, ProjectStatus, DocumentCategory };
+export type { UserRole, ProjectStatus, DocumentCategory, TaskType, TaskStatus };
 
 // Project types
 export interface Project {
@@ -9,16 +9,32 @@ export interface Project {
   description: string | null;
   location: string | null;
   capacityKw: number | null;
-  currentPhase: ProjectPhase;
   progressPercent: number;
   status: ProjectStatus;
   createdAt: Date | string;
   updatedAt: Date | string;
   members?: ProjectMember[];
+  tasks?: ProjectTask[];
   _count?: {
     members: number;
     documents: number;
+    tasks: number;
   };
+}
+
+// Project Task types
+export interface ProjectTask {
+  id: string;
+  projectId: string;
+  taskType: TaskType;
+  status: TaskStatus;
+  displayOrder: number;
+  note: string | null;
+  completedAt: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  taskTypeLabel?: string;
+  statusLabel?: string;
 }
 
 export interface ProjectMember {
@@ -96,7 +112,10 @@ export interface UpdateProjectInput {
   description?: string;
   location?: string;
   capacityKw?: number;
-  currentPhase?: ProjectPhase;
-  progressPercent?: number;
   status?: ProjectStatus;
+}
+
+export interface UpdateTaskInput {
+  status?: TaskStatus;
+  note?: string;
 }
