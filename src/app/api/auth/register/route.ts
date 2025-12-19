@@ -15,24 +15,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, name, role = "CLIENT" } = body;
+    const { username, email, password, name, role = "CLIENT" } = body;
 
     // Validate input
-    if (!email || !password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { error: "이메일과 비밀번호는 필수입니다." },
+        { error: "아이디와 비밀번호는 필수입니다." },
         { status: 400 }
       );
     }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { username },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "이미 존재하는 이메일입니다." },
+        { error: "이미 존재하는 아이디입니다." },
         { status: 400 }
       );
     }
@@ -43,13 +43,15 @@ export async function POST(request: NextRequest) {
     // Create user
     const user = await prisma.user.create({
       data: {
-        email,
+        username,
+        email: email || null,
         password: hashedPassword,
         name,
         role,
       },
       select: {
         id: true,
+        username: true,
         email: true,
         name: true,
         role: true,

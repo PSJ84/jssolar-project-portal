@@ -18,6 +18,7 @@ export async function GET() {
       where: { id: session.user.id },
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,
@@ -113,6 +114,7 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,

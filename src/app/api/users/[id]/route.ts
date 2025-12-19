@@ -32,6 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       where: { id },
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,
@@ -92,14 +93,32 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { name, role, password } = body;
+    const { username, name, role, password } = body;
 
     // 업데이트할 데이터 구성
     const updateData: {
+      username?: string;
       name?: string;
       role?: UserRole;
       password?: string;
     } = {};
+
+    if (username !== undefined) {
+      // 아이디 중복 체크 (본인 제외)
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          username,
+          NOT: { id },
+        },
+      });
+      if (existingUser) {
+        return NextResponse.json(
+          { error: "Username already exists" },
+          { status: 409 }
+        );
+      }
+      updateData.username = username;
+    }
 
     if (name !== undefined) {
       updateData.name = name;
@@ -139,6 +158,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: updateData,
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,

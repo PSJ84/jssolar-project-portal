@@ -53,8 +53,9 @@ import { Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
 
 interface User {
   id: string;
+  username: string;
   name: string | null;
-  email: string;
+  email: string | null;
   role: "ADMIN" | "CLIENT";
   createdAt: string;
   updatedAt: string;
@@ -79,12 +80,13 @@ export default function AdminUsersPage() {
   // Form states
   const [formLoading, setFormLoading] = useState(false);
   const [createForm, setCreateForm] = useState({
+    username: "",
     name: "",
-    email: "",
     password: "",
     role: "CLIENT" as "ADMIN" | "CLIENT",
   });
   const [editForm, setEditForm] = useState({
+    username: "",
     name: "",
     role: "CLIENT" as "ADMIN" | "CLIENT",
     resetPassword: false,
@@ -130,8 +132,8 @@ export default function AdminUsersPage() {
 
   // Create user handler
   const handleCreateUser = async () => {
-    if (!createForm.email || !createForm.password) {
-      toast.error("이메일과 비밀번호는 필수입니다.");
+    if (!createForm.username || !createForm.password) {
+      toast.error("아이디와 비밀번호는 필수입니다.");
       return;
     }
 
@@ -150,13 +152,13 @@ export default function AdminUsersPage() {
 
       toast.success("사용자가 생성되었습니다.");
       setCreateDialogOpen(false);
-      setCreateForm({ name: "", email: "", password: "", role: "CLIENT" });
+      setCreateForm({ username: "", name: "", password: "", role: "CLIENT" });
       fetchUsers();
     } catch (error) {
       console.error("Error creating user:", error);
       const errorMessage = error instanceof Error ? error.message : "";
-      if (errorMessage === "Email already exists") {
-        toast.error("이미 존재하는 이메일입니다.");
+      if (errorMessage === "Username already exists") {
+        toast.error("이미 존재하는 아이디입니다.");
       } else if (errorMessage === "Password must be at least 6 characters") {
         toast.error("비밀번호는 최소 6자 이상이어야 합니다.");
       } else {
@@ -173,7 +175,8 @@ export default function AdminUsersPage() {
 
     try {
       setFormLoading(true);
-      const updateData: { name?: string; role?: string; password?: string } = {
+      const updateData: { username?: string; name?: string; role?: string; password?: string } = {
+        username: editForm.username,
         name: editForm.name,
         role: editForm.role,
       };
@@ -246,6 +249,7 @@ export default function AdminUsersPage() {
   const openEditDialog = (user: User) => {
     setSelectedUser(user);
     setEditForm({
+      username: user.username,
       name: user.name || "",
       role: user.role,
       resetPassword: false,
@@ -287,6 +291,17 @@ export default function AdminUsersPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
+                <Label htmlFor="create-username">아이디 *</Label>
+                <Input
+                  id="create-username"
+                  placeholder="아이디 입력"
+                  value={createForm.username}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, username: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="create-name">이름</Label>
                 <Input
                   id="create-name"
@@ -294,18 +309,6 @@ export default function AdminUsersPage() {
                   value={createForm.name}
                   onChange={(e) =>
                     setCreateForm({ ...createForm, name: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="create-email">이메일 *</Label>
-                <Input
-                  id="create-email"
-                  type="email"
-                  placeholder="user@example.com"
-                  value={createForm.email}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, email: e.target.value })
                   }
                 />
               </div>
@@ -391,8 +394,8 @@ export default function AdminUsersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>아이디</TableHead>
                     <TableHead>이름</TableHead>
-                    <TableHead>이메일</TableHead>
                     <TableHead>역할</TableHead>
                     <TableHead>가입일</TableHead>
                     <TableHead className="text-right">액션</TableHead>
@@ -402,9 +405,9 @@ export default function AdminUsersPage() {
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
-                        {user.name || "-"}
+                        {user.username}
                       </TableCell>
-                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.name || "-"}</TableCell>
                       <TableCell>
                         <Badge variant={getRoleBadgeVariant(user.role)}>
                           {getRoleLabel(user.role)}
@@ -448,10 +451,21 @@ export default function AdminUsersPage() {
           <DialogHeader>
             <DialogTitle>사용자 수정</DialogTitle>
             <DialogDescription>
-              {selectedUser?.email}의 정보를 수정합니다.
+              {selectedUser?.username}의 정보를 수정합니다.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">아이디</Label>
+              <Input
+                id="edit-username"
+                placeholder="아이디"
+                value={editForm.username}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, username: e.target.value })
+                }
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="edit-name">이름</Label>
               <Input
@@ -531,7 +545,7 @@ export default function AdminUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>사용자 삭제</AlertDialogTitle>
             <AlertDialogDescription>
-              정말로 <span className="font-semibold">{selectedUser?.name || selectedUser?.email}</span>을(를) 삭제하시겠습니까?
+              정말로 <span className="font-semibold">{selectedUser?.name || selectedUser?.username}</span>을(를) 삭제하시겠습니까?
               <br />
               이 작업은 되돌릴 수 없습니다.
             </AlertDialogDescription>

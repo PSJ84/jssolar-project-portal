@@ -26,6 +26,7 @@ export async function GET() {
     const users = await prisma.user.findMany({
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,
@@ -69,12 +70,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email, password, role } = body;
+    const { username, name, email, password, role } = body;
 
     // 필수 필드 검증
-    if (!email) {
+    if (!username) {
       return NextResponse.json(
-        { error: "Email is required" },
+        { error: "Username is required" },
         { status: 400 }
       );
     }
@@ -86,11 +87,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 이메일 형식 검증
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // 아이디 길이 검증
+    if (username.length < 2) {
       return NextResponse.json(
-        { error: "Invalid email format" },
+        { error: "Username must be at least 2 characters" },
         { status: 400 }
       );
     }
@@ -103,14 +103,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 이메일 중복 체크
+    // 아이디 중복 체크
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { username },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Email already exists" },
+        { error: "Username already exists" },
         { status: 409 }
       );
     }
@@ -125,13 +125,15 @@ export async function POST(request: NextRequest) {
     // 사용자 생성
     const user = await prisma.user.create({
       data: {
+        username,
         name,
-        email,
+        email: email || null,
         password: hashedPassword,
         role: userRole,
       },
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,

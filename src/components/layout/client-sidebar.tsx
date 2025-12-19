@@ -9,13 +9,11 @@ import { Card } from "@/components/ui/card";
 import {
   FolderKanban,
   LogOut,
-  Settings,
   Sun,
 } from "lucide-react";
 
 const navigation = [
   { name: "내 프로젝트", href: "/projects", icon: FolderKanban },
-  { name: "설정", href: "/settings", icon: Settings },
 ];
 
 interface ClientSidebarProps {

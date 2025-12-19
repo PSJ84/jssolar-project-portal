@@ -135,8 +135,8 @@ export async function POST(
           { status: 400 }
         );
       }
-      // 기존 User가 있는지 확인
-      existingUser = await prisma.user.findUnique({
+      // 기존 User가 있는지 확인 (이메일로 검색)
+      existingUser = await prisma.user.findFirst({
         where: { email },
         select: { id: true, name: true, email: true },
       });

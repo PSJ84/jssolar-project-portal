@@ -10,8 +10,9 @@ datasource db {
 // NextAuth User model with role-based access
 model User {
   id                 String             @id @default(cuid())
+  username           String             @unique  // 로그인 아이디
   name               String?
-  email              String             @unique
+  email              String?            // 이메일 (선택)
   emailVerified      DateTime?
   image              String?
   password           String?            // Hashed password for credentials login

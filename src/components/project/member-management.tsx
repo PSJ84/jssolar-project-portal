@@ -22,14 +22,14 @@ interface Member {
   user: {
     id: string;
     name: string | null;
-    email: string;
+    email: string | null;
   } | null;
 }
 
 interface AvailableUser {
   id: string;
   name: string | null;
-  email: string;
+  email: string | null;
 }
 
 interface MemberManagementProps {

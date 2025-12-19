@@ -24,15 +24,16 @@ async function main() {
 
   // ==================== Admin User ====================
   let admin = await prisma.user.findUnique({
-    where: { email: 'admin@jssolar.kr' },
+    where: { username: 'admin' },
   });
 
   if (admin) {
-    console.log('Admin user already exists:', admin.email);
+    console.log('Admin user already exists:', admin.username);
   } else {
     const adminHashedPassword = await bcrypt.hash('admin123', 10);
     admin = await prisma.user.create({
       data: {
+        username: 'admin',
         email: 'admin@jssolar.kr',
         password: adminHashedPassword,
         name: 'JS Solar Admin',
@@ -40,20 +41,21 @@ async function main() {
         emailVerified: new Date(),
       },
     });
-    console.log('Admin user created:', admin.email);
+    console.log('Admin user created:', admin.username);
   }
 
   // ==================== Test Client User ====================
   let testClient = await prisma.user.findUnique({
-    where: { email: 'client@test.com' },
+    where: { username: 'client' },
   });
 
   if (testClient) {
-    console.log('Test client user already exists:', testClient.email);
+    console.log('Test client user already exists:', testClient.username);
   } else {
     const clientHashedPassword = await bcrypt.hash('client123', 10);
     testClient = await prisma.user.create({
       data: {
+        username: 'client',
         email: 'client@test.com',
         password: clientHashedPassword,
         name: '테스트 고객',
@@ -61,7 +63,7 @@ async function main() {
         emailVerified: new Date(),
       },
     });
-    console.log('Test client user created:', testClient.email);
+    console.log('Test client user created:', testClient.username);
   }
 
   // ==================== Sample Project ====================
