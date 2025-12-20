@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Card,
@@ -49,27 +50,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Loader2, Pencil, Trash2, UserPlus, ShieldAlert } from "lucide-react";
+
+interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 interface User {
   id: string;
   username: string;
   name: string | null;
   email: string | null;
-  role: "ADMIN" | "CLIENT";
+  role: "SUPER_ADMIN" | "ADMIN" | "CLIENT";
+  organizationId: string | null;
+  organization: Organization | null;
   createdAt: string;
   updatedAt: string;
   image: string | null;
   emailVerified: string | null;
 }
 
-type RoleFilter = "all" | "ADMIN" | "CLIENT";
+type RoleFilter = "all" | "SUPER_ADMIN" | "ADMIN" | "CLIENT";
 
 export default function AdminUsersPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [orgFilter, setOrgFilter] = useState<string>("all");
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -84,21 +96,60 @@ export default function AdminUsersPage() {
     name: "",
     password: "",
     role: "CLIENT" as "ADMIN" | "CLIENT",
+    organizationId: "",
   });
   const [editForm, setEditForm] = useState({
     username: "",
     name: "",
-    role: "CLIENT" as "ADMIN" | "CLIENT",
+    role: "CLIENT" as "SUPER_ADMIN" | "ADMIN" | "CLIENT",
+    organizationId: "",
     resetPassword: false,
     newPassword: "",
   });
+
+  // SUPER_ADMIN 권한 체크
+  const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
+
+  useEffect(() => {
+    if (status === "loading") return;
+
+    if (!isSuperAdmin) {
+      toast.error("권한이 없습니다.");
+      router.push("/admin/projects");
+      return;
+    }
+
+    fetchOrganizations();
+    fetchUsers();
+  }, [status, isSuperAdmin, router]);
+
+  // Fetch organizations
+  const fetchOrganizations = async () => {
+    try {
+      const response = await fetch("/api/super/organizations");
+      if (response.ok) {
+        const data = await response.json();
+        setOrganizations(data);
+      }
+    } catch (error) {
+      console.error("Error fetching organizations:", error);
+    }
+  };
 
   // Fetch users
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/users");
+      const url = orgFilter && orgFilter !== "all"
+        ? `/api/users?organizationId=${orgFilter}`
+        : "/api/users";
+      const response = await fetch(url);
       if (!response.ok) {
+        if (response.status === 403) {
+          toast.error("권한이 없습니다.");
+          router.push("/admin/projects");
+          return;
+        }
         throw new Error("Failed to fetch users");
       }
       const data = await response.json();
@@ -112,8 +163,10 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isSuperAdmin) {
+      fetchUsers();
+    }
+  }, [orgFilter]);
 
   // Filter users by role
   const filteredUsers = users.filter((user) => {
@@ -123,17 +176,30 @@ export default function AdminUsersPage() {
 
   // Role display helper
   const getRoleLabel = (role: string) => {
-    return role === "ADMIN" ? "관리자" : "사업주";
+    switch (role) {
+      case "SUPER_ADMIN": return "슈퍼관리자";
+      case "ADMIN": return "관리자";
+      default: return "사업주";
+    }
   };
 
-  const getRoleBadgeVariant = (role: string): "default" | "secondary" => {
-    return role === "ADMIN" ? "default" : "secondary";
+  const getRoleBadgeVariant = (role: string): "default" | "secondary" | "destructive" => {
+    switch (role) {
+      case "SUPER_ADMIN": return "destructive";
+      case "ADMIN": return "default";
+      default: return "secondary";
+    }
   };
 
   // Create user handler
   const handleCreateUser = async () => {
     if (!createForm.username || !createForm.password) {
       toast.error("아이디와 비밀번호는 필수입니다.");
+      return;
+    }
+
+    if (!createForm.organizationId) {
+      toast.error("소속 조직을 선택해주세요.");
       return;
     }
 
@@ -152,7 +218,7 @@ export default function AdminUsersPage() {
 
       toast.success("사용자가 생성되었습니다.");
       setCreateDialogOpen(false);
-      setCreateForm({ username: "", name: "", password: "", role: "CLIENT" });
+      setCreateForm({ username: "", name: "", password: "", role: "CLIENT", organizationId: "" });
       fetchUsers();
     } catch (error) {
       console.error("Error creating user:", error);
@@ -175,10 +241,17 @@ export default function AdminUsersPage() {
 
     try {
       setFormLoading(true);
-      const updateData: { username?: string; name?: string; role?: string; password?: string } = {
+      const updateData: {
+        username?: string;
+        name?: string;
+        role?: string;
+        password?: string;
+        organizationId?: string;
+      } = {
         username: editForm.username,
         name: editForm.name,
         role: editForm.role,
+        organizationId: editForm.organizationId,
       };
 
       if (editForm.resetPassword && editForm.newPassword) {
@@ -237,6 +310,8 @@ export default function AdminUsersPage() {
       const errorMessage = error instanceof Error ? error.message : "";
       if (errorMessage === "Cannot delete your own account") {
         toast.error("본인 계정은 삭제할 수 없습니다.");
+      } else if (errorMessage === "Cannot delete SUPER_ADMIN user") {
+        toast.error("슈퍼관리자는 삭제할 수 없습니다.");
       } else {
         toast.error("사용자 삭제에 실패했습니다.");
       }
@@ -252,6 +327,7 @@ export default function AdminUsersPage() {
       username: user.username,
       name: user.name || "",
       role: user.role,
+      organizationId: user.organizationId || "",
       resetPassword: false,
       newPassword: "",
     });
@@ -264,13 +340,32 @@ export default function AdminUsersPage() {
     setDeleteDialogOpen(true);
   };
 
+  // 권한 없음 표시
+  if (status === "loading" || loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <ShieldAlert className="h-16 w-16 text-muted-foreground" />
+        <h2 className="text-xl font-semibold">권한이 없습니다</h2>
+        <p className="text-muted-foreground">이 페이지는 슈퍼관리자만 접근할 수 있습니다.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">사용자 관리</h1>
           <p className="text-muted-foreground mt-1">
-            시스템 사용자를 관리합니다.
+            전체 시스템 사용자를 관리합니다.
           </p>
         </div>
 
@@ -290,6 +385,26 @@ export default function AdminUsersPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="create-org">소속 조직 *</Label>
+                <Select
+                  value={createForm.organizationId}
+                  onValueChange={(value) =>
+                    setCreateForm({ ...createForm, organizationId: value })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="조직 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="create-username">아이디 *</Label>
                 <Input
@@ -367,18 +482,38 @@ export default function AdminUsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Role Filter Tabs */}
-          <Tabs
-            value={roleFilter}
-            onValueChange={(value) => setRoleFilter(value as RoleFilter)}
-            className="mb-6"
-          >
-            <TabsList>
-              <TabsTrigger value="all">전체</TabsTrigger>
-              <TabsTrigger value="ADMIN">관리자</TabsTrigger>
-              <TabsTrigger value="CLIENT">사업주</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            {/* Organization Filter */}
+            <div className="w-full sm:w-48">
+              <Select value={orgFilter} onValueChange={setOrgFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="조직 필터" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 조직</SelectItem>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Role Filter Tabs */}
+            <Tabs
+              value={roleFilter}
+              onValueChange={(value) => setRoleFilter(value as RoleFilter)}
+            >
+              <TabsList>
+                <TabsTrigger value="all">전체</TabsTrigger>
+                <TabsTrigger value="SUPER_ADMIN">슈퍼관리자</TabsTrigger>
+                <TabsTrigger value="ADMIN">관리자</TabsTrigger>
+                <TabsTrigger value="CLIENT">사업주</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           {/* Users Table */}
           {loading ? (
@@ -396,6 +531,7 @@ export default function AdminUsersPage() {
                   <TableRow>
                     <TableHead>아이디</TableHead>
                     <TableHead>이름</TableHead>
+                    <TableHead>소속 조직</TableHead>
                     <TableHead>역할</TableHead>
                     <TableHead>가입일</TableHead>
                     <TableHead className="text-right">액션</TableHead>
@@ -408,6 +544,9 @@ export default function AdminUsersPage() {
                         {user.username}
                       </TableCell>
                       <TableCell>{user.name || "-"}</TableCell>
+                      <TableCell>
+                        {user.organization?.name || "-"}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={getRoleBadgeVariant(user.role)}>
                           {getRoleLabel(user.role)}
@@ -429,7 +568,7 @@ export default function AdminUsersPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => openDeleteDialog(user)}
-                            disabled={session?.user?.id === user.id}
+                            disabled={session?.user?.id === user.id || user.role === "SUPER_ADMIN"}
                             className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -456,6 +595,26 @@ export default function AdminUsersPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label htmlFor="edit-org">소속 조직</Label>
+              <Select
+                value={editForm.organizationId}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, organizationId: value })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="조직 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="edit-username">아이디</Label>
               <Input
                 id="edit-username"
@@ -481,9 +640,10 @@ export default function AdminUsersPage() {
               <Label htmlFor="edit-role">역할</Label>
               <Select
                 value={editForm.role}
-                onValueChange={(value: "ADMIN" | "CLIENT") =>
+                onValueChange={(value: "SUPER_ADMIN" | "ADMIN" | "CLIENT") =>
                   setEditForm({ ...editForm, role: value })
                 }
+                disabled={selectedUser?.role === "SUPER_ADMIN"}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -491,6 +651,9 @@ export default function AdminUsersPage() {
                 <SelectContent>
                   <SelectItem value="CLIENT">사업주</SelectItem>
                   <SelectItem value="ADMIN">관리자</SelectItem>
+                  {selectedUser?.role === "SUPER_ADMIN" && (
+                    <SelectItem value="SUPER_ADMIN">슈퍼관리자</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

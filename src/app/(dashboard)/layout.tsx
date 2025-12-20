@@ -17,13 +17,13 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const isAdmin = session.user.role === "ADMIN";
+  const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
 
   return (
     <MobileNav userName={session.user.name} userRole={session.user.role}>
       <div className="min-h-screen flex flex-col md:flex-row">
         {isAdmin ? (
-          <AdminSidebar userName={session.user.name} />
+          <AdminSidebar userName={session.user.name} userRole={session.user.role} />
         ) : (
           <ClientSidebar userName={session.user.name} />
         )}

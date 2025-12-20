@@ -1,4 +1,4 @@
-import { PrismaClient, TaskType, TaskStatus } from '@prisma/client';
+import { PrismaClient, TaskType, TaskStatus, Plan, Feature } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -22,6 +22,34 @@ const DEFAULT_TASK_ORDER: TaskType[] = [
 async function main() {
   console.log('Starting seed...');
 
+  // ==================== Organization ====================
+  let organization = await prisma.organization.findUnique({
+    where: { slug: 'js-solar' },
+  });
+
+  if (organization) {
+    console.log('Organization already exists:', organization.name);
+  } else {
+    organization = await prisma.organization.create({
+      data: {
+        name: 'JS Solar',
+        slug: 'js-solar',
+        plan: Plan.ENTERPRISE,
+        sessionMaxDays: 60,
+      },
+    });
+    // Enable all features
+    const allFeatures = Object.values(Feature);
+    await prisma.organizationFeature.createMany({
+      data: allFeatures.map((feature) => ({
+        organizationId: organization!.id,
+        feature,
+        enabled: true,
+      })),
+    });
+    console.log('Organization created:', organization.name);
+  }
+
   // ==================== Admin User ====================
   let admin = await prisma.user.findUnique({
     where: { username: 'admin' },
@@ -37,7 +65,8 @@ async function main() {
         email: 'admin@jssolar.kr',
         password: adminHashedPassword,
         name: 'JS Solar Admin',
-        role: 'ADMIN',
+        role: 'SUPER_ADMIN',
+        organizationId: organization.id,
         emailVerified: new Date(),
       },
     });
@@ -60,6 +89,7 @@ async function main() {
         password: clientHashedPassword,
         name: '테스트 고객',
         role: 'CLIENT',
+        organizationId: organization.id,
         emailVerified: new Date(),
       },
     });
@@ -82,6 +112,7 @@ async function main() {
         capacityKw: 100,
         progressPercent: 0, // Will be updated when tasks are created
         status: 'ACTIVE',
+        organizationId: organization.id,
       },
     });
     console.log('Sample project created:', sampleProject.name);

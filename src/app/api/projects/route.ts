@@ -5,7 +5,8 @@ import { UserRole } from "@prisma/client";
 import { createDefaultTasks } from "@/lib/project-tasks";
 
 // GET /api/projects - 프로젝트 목록 조회
-// ADMIN: 전체 프로젝트
+// SUPER_ADMIN: 전체 프로젝트
+// ADMIN: 같은 조직의 프로젝트
 // CLIENT: 본인이 멤버로 등록된 프로젝트만
 export async function GET(request: NextRequest) {
   try {
@@ -20,15 +21,45 @@ export async function GET(request: NextRequest) {
 
     const { role, id: userId } = session.user;
 
+    // 사용자의 organizationId 조회
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+
     let projects;
 
-    if (role === UserRole.ADMIN) {
-      // ADMIN: 모든 프로젝트 조회
+    if (role === UserRole.SUPER_ADMIN) {
+      // SUPER_ADMIN: 모든 프로젝트 조회
       projects = await prisma.project.findMany({
         where: {
           status: {
-            not: "ARCHIVED", // 기본적으로 아카이브된 프로젝트는 제외
+            not: "ARCHIVED",
           },
+        },
+        include: {
+          organization: {
+            select: { name: true, slug: true },
+          },
+          _count: {
+            select: {
+              members: true,
+              documents: true,
+            },
+          },
+        },
+        orderBy: {
+          updatedAt: "desc",
+        },
+      });
+    } else if (role === UserRole.ADMIN) {
+      // ADMIN: 같은 조직의 프로젝트만 조회
+      projects = await prisma.project.findMany({
+        where: {
+          status: {
+            not: "ARCHIVED",
+          },
+          organizationId: user?.organizationId ?? undefined,
         },
         include: {
           _count: {
@@ -79,7 +110,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/projects - 프로젝트 생성 (ADMIN만)
+// POST /api/projects - 프로젝트 생성 (ADMIN, SUPER_ADMIN)
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -91,10 +122,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    const isAdmin = session.user.role === UserRole.ADMIN || session.user.role === UserRole.SUPER_ADMIN;
+    if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
         { status: 403 }
+      );
+    }
+
+    // 사용자의 organizationId 조회
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { organizationId: true },
+    });
+
+    if (!user?.organizationId) {
+      return NextResponse.json(
+        { error: "User is not associated with an organization" },
+        { status: 400 }
       );
     }
 
@@ -116,6 +161,7 @@ export async function POST(request: NextRequest) {
           description,
           location,
           capacityKw: capacityKw ? parseFloat(capacityKw) : null,
+          organizationId: user.organizationId!,
         },
         include: {
           _count: {

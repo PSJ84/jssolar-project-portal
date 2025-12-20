@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Sun,
+  Building2,
 } from "lucide-react";
 
 const navigation = [
@@ -20,12 +21,18 @@ const navigation = [
   { name: "설정", href: "/admin/settings", icon: Settings },
 ];
 
+const superAdminNavigation = [
+  { name: "조직 관리", href: "/super/organizations", icon: Building2 },
+];
+
 interface AdminSidebarProps {
   userName?: string | null;
+  userRole?: string | null;
 }
 
-export function AdminSidebar({ userName }: AdminSidebarProps) {
+export function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
   const pathname = usePathname();
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
@@ -39,11 +46,42 @@ export function AdminSidebar({ userName }: AdminSidebarProps) {
           <Sun className="h-6 w-6 text-solar-500" />
           <h1 className="text-xl font-bold text-primary">JSSolar</h1>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">관리자 모드</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {isSuperAdmin ? "Super Admin" : "관리자 모드"}
+        </p>
       </div>
 
       {/* Navigation */}
       <nav className="px-4 space-y-1 flex-1">
+        {/* Super Admin Menu */}
+        {isSuperAdmin && (
+          <>
+            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
+              Super Admin
+            </p>
+            {superAdminNavigation.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
+            <div className="my-3 border-b" />
+          </>
+        )}
+
+        {/* Regular Admin Menu */}
         {navigation.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (

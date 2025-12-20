@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-// GET /api/users - 사용자 목록 조회 (ADMIN만)
-export async function GET() {
+// GET /api/users - 사용자 목록 조회 (SUPER_ADMIN만)
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
@@ -16,20 +16,33 @@ export async function GET() {
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.SUPER_ADMIN) {
       return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
+        { error: "Forbidden: SUPER_ADMIN role required" },
         { status: 403 }
       );
     }
 
+    // 조직별 필터링
+    const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get("organizationId");
+
     const users = await prisma.user.findMany({
+      where: organizationId ? { organizationId } : undefined,
       select: {
         id: true,
         username: true,
         name: true,
         email: true,
         role: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
         image: true,
@@ -50,7 +63,7 @@ export async function GET() {
   }
 }
 
-// POST /api/users - 사용자 생성 (ADMIN만)
+// POST /api/users - 사용자 생성 (SUPER_ADMIN만)
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -62,15 +75,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.SUPER_ADMIN) {
       return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
+        { error: "Forbidden: SUPER_ADMIN role required" },
         { status: 403 }
       );
     }
 
     const body = await request.json();
-    const { username, name, email, password, role } = body;
+    const { username, name, email, password, role, organizationId } = body;
 
     // 필수 필드 검증
     if (!username) {
@@ -84,6 +97,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Password is required" },
         { status: 400 }
+      );
+    }
+
+    if (!organizationId) {
+      return NextResponse.json(
+        { error: "Organization is required" },
+        { status: 400 }
+      );
+    }
+
+    // 조직 존재 확인
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 }
       );
     }
 
@@ -115,9 +147,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 역할 검증
-    const validRoles = Object.values(UserRole);
-    const userRole = role && validRoles.includes(role) ? role : UserRole.CLIENT;
+    // 역할 검증 (SUPER_ADMIN은 생성 불가)
+    const allowedRoles = [UserRole.ADMIN, UserRole.CLIENT];
+    const userRole = role && allowedRoles.includes(role) ? role : UserRole.CLIENT;
 
     // 비밀번호 해시
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -130,6 +162,7 @@ export async function POST(request: NextRequest) {
         email: email || null,
         password: hashedPassword,
         role: userRole,
+        organizationId,
       },
       select: {
         id: true,
@@ -137,6 +170,13 @@ export async function POST(request: NextRequest) {
         name: true,
         email: true,
         role: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
       },

@@ -8,7 +8,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/users/[id] - 특정 사용자 조회 (ADMIN만)
+// GET /api/users/[id] - 특정 사용자 조회 (SUPER_ADMIN만)
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
@@ -21,9 +21,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.SUPER_ADMIN) {
       return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
+        { error: "Forbidden: SUPER_ADMIN role required" },
         { status: 403 }
       );
     }
@@ -36,6 +36,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         name: true,
         email: true,
         role: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
         image: true,
@@ -60,7 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PATCH /api/users/[id] - 사용자 수정 (ADMIN만)
+// PATCH /api/users/[id] - 사용자 수정 (SUPER_ADMIN만)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
@@ -73,9 +81,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.SUPER_ADMIN) {
       return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
+        { error: "Forbidden: SUPER_ADMIN role required" },
         { status: 403 }
       );
     }
@@ -93,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { username, name, role, password } = body;
+    const { username, name, role, password, organizationId } = body;
 
     // 업데이트할 데이터 구성
     const updateData: {
@@ -101,17 +109,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       name?: string;
       role?: UserRole;
       password?: string;
+      organizationId?: string;
     } = {};
 
     if (username !== undefined) {
       // 아이디 중복 체크 (본인 제외)
-      const existingUser = await prisma.user.findFirst({
+      const duplicateUser = await prisma.user.findFirst({
         where: {
           username,
           NOT: { id },
         },
       });
-      if (existingUser) {
+      if (duplicateUser) {
         return NextResponse.json(
           { error: "Username already exists" },
           { status: 409 }
@@ -125,8 +134,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     if (role !== undefined) {
-      const validRoles = Object.values(UserRole);
-      if (!validRoles.includes(role)) {
+      // SUPER_ADMIN 역할로는 변경 불가 (기존 SUPER_ADMIN 유지는 가능)
+      const allowedRoles = [UserRole.ADMIN, UserRole.CLIENT];
+      if (role === UserRole.SUPER_ADMIN && existingUser.role !== UserRole.SUPER_ADMIN) {
+        return NextResponse.json(
+          { error: "Cannot assign SUPER_ADMIN role" },
+          { status: 400 }
+        );
+      }
+      if (!Object.values(UserRole).includes(role)) {
         return NextResponse.json(
           { error: "Invalid role" },
           { status: 400 }
@@ -143,6 +159,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         );
       }
       updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    if (organizationId !== undefined) {
+      // 조직 존재 확인
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+      });
+      if (!organization) {
+        return NextResponse.json(
+          { error: "Organization not found" },
+          { status: 404 }
+        );
+      }
+      updateData.organizationId = organizationId;
     }
 
     // 업데이트할 내용이 없는 경우
@@ -162,6 +192,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         name: true,
         email: true,
         role: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
       },
@@ -177,7 +214,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/users/[id] - 사용자 삭제 (ADMIN만)
+// DELETE /api/users/[id] - 사용자 삭제 (SUPER_ADMIN만)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
@@ -190,9 +227,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.SUPER_ADMIN) {
       return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
+        { error: "Forbidden: SUPER_ADMIN role required" },
         { status: 403 }
       );
     }
@@ -214,6 +251,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
+      );
+    }
+
+    // SUPER_ADMIN은 삭제 불가
+    if (existingUser.role === UserRole.SUPER_ADMIN) {
+      return NextResponse.json(
+        { error: "Cannot delete SUPER_ADMIN user" },
+        { status: 400 }
       );
     }
 
