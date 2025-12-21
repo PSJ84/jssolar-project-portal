@@ -3,6 +3,23 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -13,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -33,14 +51,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Plus,
   Loader2,
   ListTodo,
   ChevronDown,
-  ChevronRight,
   Pencil,
   Trash2,
   GripVertical,
+  FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +73,8 @@ interface TaskTemplate {
   description: string | null;
   sortOrder: number;
   defaultAlertEnabled: boolean;
+  isPermitTask: boolean;
+  processingDays: number | null;
   children: TaskTemplate[];
 }
 
@@ -57,6 +82,7 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
 
   // Dialog states
   const [isAddMainOpen, setIsAddMainOpen] = useState(false);
@@ -72,6 +98,14 @@ export default function TemplatesPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -113,6 +147,63 @@ export default function TemplatesPage() {
     setSelectedParentId(null);
     setSelectedTemplate(null);
     setSelectedChildId(null);
+  };
+
+  // 순서 저장 공통 함수
+  const saveOrder = async (url: string, body: object) => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error("Failed to save order");
+      toast.success("순서가 저장되었습니다");
+    } catch (error) {
+      toast.error("순서 저장에 실패했습니다");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 메인 템플릿 드래그 앤 드롭
+  const handleMainDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = templates.findIndex((t) => t.id === active.id);
+    const newIndex = templates.findIndex((t) => t.id === over.id);
+    const newTemplates = arrayMove(templates, oldIndex, newIndex);
+
+    setTemplates(newTemplates);
+    await saveOrder("/api/super/templates/reorder", {
+      orderedIds: newTemplates.map((t) => t.id),
+    });
+  };
+
+  // 하위 템플릿 드래그 앤 드롭
+  const handleChildDragEnd = async (parentId: string, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setTemplates((prev) =>
+      prev.map((template) => {
+        if (template.id !== parentId) return template;
+
+        const oldIndex = template.children.findIndex((c) => c.id === active.id);
+        const newIndex = template.children.findIndex((c) => c.id === over.id);
+        const newChildren = arrayMove(template.children, oldIndex, newIndex);
+
+        // API 호출
+        saveOrder(`/api/super/templates/${parentId}/children/reorder`, {
+          orderedIds: newChildren.map((c) => c.id),
+        });
+
+        return { ...template, children: newChildren };
+      })
+    );
   };
 
   // 메인 템플릿 추가
@@ -324,7 +415,7 @@ export default function TemplatesPage() {
         <div>
           <h1 className="text-3xl font-bold">시스템 템플릿 관리</h1>
           <p className="text-muted-foreground mt-1">
-            모든 프로젝트에 적용되는 기본 단계 템플릿을 관리합니다.
+            드래그하여 순서를 변경할 수 있습니다.
           </p>
         </div>
         <Dialog open={isAddMainOpen} onOpenChange={setIsAddMainOpen}>
@@ -415,129 +506,44 @@ export default function TemplatesPage() {
               전체 {templates.length}개 메인 단계
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {templates.map((template) => (
-              <div
-                key={template.id}
-                className="border rounded-lg overflow-hidden"
+          <CardContent>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleMainDragEnd}
+            >
+              <SortableContext
+                items={templates.map((t) => t.id)}
+                strategy={verticalListSortingStrategy}
               >
-                {/* 메인 템플릿 */}
-                <div
-                  className={cn(
-                    "flex items-center gap-2 p-3 bg-muted/50",
-                    template.children.length > 0 && "cursor-pointer"
-                  )}
-                  onClick={() =>
-                    template.children.length > 0 && toggleExpand(template.id)
-                  }
-                >
-                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-
-                  {template.children.length > 0 ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 shrink-0"
-                    >
-                      {expandedIds.has(template.id) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                  ) : (
-                    <div className="w-6" />
-                  )}
-
-                  <span className="font-medium flex-1">{template.name}</span>
-
-                  <span className="text-sm text-muted-foreground">
-                    {template.children.length}개 하위 단계
-                  </span>
-
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openAddChildDialog(template.id);
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditDialog(template);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDeleteDialog(template);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div className="space-y-2">
+                  {templates.map((template, index) => (
+                    <SortableMainTemplate
+                      key={template.id}
+                      template={template}
+                      index={index}
+                      isExpanded={expandedIds.has(template.id)}
+                      onToggleExpand={() => toggleExpand(template.id)}
+                      onChildDragEnd={(e) => handleChildDragEnd(template.id, e)}
+                      sensors={sensors}
+                      onAddChild={() => openAddChildDialog(template.id)}
+                      onEdit={(t, pId, cId) => openEditDialog(t, pId, cId)}
+                      onDelete={(t, pId, cId) => openDeleteDialog(t, pId, cId)}
+                    />
+                  ))}
                 </div>
-
-                {/* 하위 템플릿 */}
-                {expandedIds.has(template.id) && template.children.length > 0 && (
-                  <div className="border-t">
-                    {template.children.map((child, index) => (
-                      <div
-                        key={child.id}
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-2 pl-14",
-                          index < template.children.length - 1 &&
-                            "border-b border-dashed"
-                        )}
-                      >
-                        <span className="text-muted-foreground text-sm w-4">
-                          {index === template.children.length - 1 ? "└" : "├"}
-                        </span>
-                        <span className="flex-1 text-sm">{child.name}</span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() =>
-                              openEditDialog(child, template.id, child.id)
-                            }
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-destructive hover:text-destructive"
-                            onClick={() =>
-                              openDeleteDialog(child, template.id, child.id)
-                            }
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              </SortableContext>
+            </DndContext>
           </CardContent>
         </Card>
+      )}
+
+      {/* 저장 중 인디케이터 */}
+      {isSaving && (
+        <div className="fixed bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          저장 중...
+        </div>
       )}
 
       {/* 하위 단계 추가 Dialog */}
@@ -684,6 +690,258 @@ export default function TemplatesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// 메인 템플릿 Sortable 컴포넌트
+interface SortableMainTemplateProps {
+  template: TaskTemplate;
+  index: number;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onChildDragEnd: (event: DragEndEvent) => void;
+  sensors: ReturnType<typeof useSensors>;
+  onAddChild: () => void;
+  onEdit: (template: TaskTemplate, parentId?: string, childId?: string) => void;
+  onDelete: (template: TaskTemplate, parentId?: string, childId?: string) => void;
+}
+
+function SortableMainTemplate({
+  template,
+  index,
+  isExpanded,
+  onToggleExpand,
+  onChildDragEnd,
+  sensors,
+  onAddChild,
+  onEdit,
+  onDelete,
+}: SortableMainTemplateProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: template.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "border rounded-lg bg-card transition-shadow",
+        isDragging && "shadow-lg ring-2 ring-primary ring-offset-2 z-50"
+      )}
+    >
+      <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
+        {/* 메인 템플릿 헤더 */}
+        <div className="flex items-center gap-2 p-3">
+          {/* 드래그 핸들 */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          {/* 순서 번호 */}
+          <span className="text-sm text-muted-foreground w-6 text-center">
+            {index + 1}
+          </span>
+
+          {/* 펼침/접힘 (하위 태스크 있을 때만) */}
+          {template.children.length > 0 && (
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6">
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform",
+                    isExpanded && "rotate-180"
+                  )}
+                />
+              </Button>
+            </CollapsibleTrigger>
+          )}
+
+          {/* 템플릿 이름 */}
+          <span className="font-medium flex-1">{template.name}</span>
+
+          {/* 인허가 배지 */}
+          {template.isPermitTask && (
+            <Badge variant="outline" className="text-blue-600 border-blue-200">
+              <FileCheck className="h-3 w-3 mr-1" />
+              인허가 {template.processingDays}일
+            </Badge>
+          )}
+
+          {/* 하위 태스크 수 */}
+          {template.children.length > 0 && (
+            <Badge variant="secondary">하위 {template.children.length}</Badge>
+          )}
+
+          {/* 액션 버튼 */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddChild();
+              }}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(template);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(template);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* 하위 태스크 목록 */}
+        <CollapsibleContent>
+          {template.children.length > 0 && (
+            <div className="border-t bg-muted/30 p-3 pl-12">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={onChildDragEnd}
+              >
+                <SortableContext
+                  items={template.children.map((c) => c.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-1">
+                    {template.children.map((child, childIndex) => (
+                      <SortableChildTemplate
+                        key={child.id}
+                        template={child}
+                        index={childIndex}
+                        parentId={template.id}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
+
+// 하위 템플릿 Sortable 컴포넌트
+interface SortableChildTemplateProps {
+  template: TaskTemplate;
+  index: number;
+  parentId: string;
+  onEdit: (template: TaskTemplate, parentId?: string, childId?: string) => void;
+  onDelete: (template: TaskTemplate, parentId?: string, childId?: string) => void;
+}
+
+function SortableChildTemplate({
+  template,
+  index,
+  parentId,
+  onEdit,
+  onDelete,
+}: SortableChildTemplateProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: template.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 p-2 rounded bg-background border",
+        isDragging && "shadow-md ring-2 ring-primary ring-offset-1 z-50"
+      )}
+    >
+      {/* 드래그 핸들 */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+      >
+        <GripVertical className="h-3 w-3 text-muted-foreground" />
+      </button>
+
+      {/* 순서 번호 */}
+      <span className="text-xs text-muted-foreground w-4 text-center">
+        {index + 1}
+      </span>
+
+      {/* 이름 */}
+      <span className="text-sm flex-1">{template.name}</span>
+
+      {/* 액션 버튼 */}
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(template, parentId, template.id);
+          }}
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(template, parentId, template.id);
+          }}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
     </div>
   );
 }
