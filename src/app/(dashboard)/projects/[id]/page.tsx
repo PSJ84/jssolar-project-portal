@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { prisma } from "@/lib/prisma";
 import { ProjectStatus, DocumentCategory, ChecklistStatus } from "@prisma/client";
 import {
@@ -15,7 +16,10 @@ import {
   ExternalLink,
   ArrowLeft,
   FolderOpen,
-  RefreshCw
+  RefreshCw,
+  CheckCircle2,
+  Clock,
+  ListTodo
 } from "lucide-react";
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 
@@ -239,57 +243,99 @@ export default async function ClientProjectDetailPage({
         </div>
       </div>
 
-      {/* Phase 2 Task List - CLIENT 간소화 뷰 */}
-      <TaskListV2
-        projectId={project.id}
-        tasks={project.tasks.map((task) => {
-          const getChecklistCount = (checklists: { status: ChecklistStatus }[]) => ({
-            total: checklists.length,
-            checked: checklists.filter((c) => c.status === ChecklistStatus.COMPLETED).length,
-          });
-          return {
-            id: task.id,
-            name: task.name,
-            sortOrder: task.sortOrder,
-            isActive: task.isActive,
-            startDate: task.startDate?.toISOString() ?? null,
-            dueDate: task.dueDate?.toISOString() ?? null,
-            completedDate: task.completedDate?.toISOString() ?? null,
-            version: task.version,
-            originTemplateTaskId: task.originTemplateTaskId,
-            checklistCount: getChecklistCount(task.checklists),
-            isPermitTask: task.isPermitTask,
-            processingDays: task.processingDays,
-            submittedDate: task.submittedDate?.toISOString() ?? null,
-            children: task.children.map((child) => ({
-              id: child.id,
-              name: child.name,
-              sortOrder: child.sortOrder,
-              isActive: child.isActive,
-              startDate: child.startDate?.toISOString() ?? null,
-              dueDate: child.dueDate?.toISOString() ?? null,
-              completedDate: child.completedDate?.toISOString() ?? null,
-              version: child.version,
-              originTemplateTaskId: child.originTemplateTaskId,
-              checklistCount: getChecklistCount(child.checklists),
-              children: [],
-            })),
-          };
-        })}
-        isAdmin={false}
-        isClient={true}
-      />
+      {/* 요약 바 - 컴팩트한 한 줄 */}
+      {(() => {
+        // 태스크 통계 계산
+        const activeTasks = project.tasks.filter(t => t.isActive);
+        const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
+        const totalTasks = allChildTasks.length;
+        const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
+        const inProgressTasks = allChildTasks.filter(c => !c.completedDate && c.startDate !== null).length;
+        const waitingTasks = allChildTasks.filter(c => !c.completedDate && !c.startDate).length;
+        const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
+        return (
+          <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/30 rounded-lg border">
+            {/* 진행률 */}
+            <div className="flex items-center gap-2 min-w-[120px]">
+              <Progress value={progressPercent} className="h-2 w-16" />
+              <span className="text-sm font-medium">{progressPercent}%</span>
+              <span className="text-xs text-muted-foreground">({completedTasks}/{totalTasks})</span>
+            </div>
 
+            <span className="text-muted-foreground">·</span>
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
+            {/* 상태별 카운트 */}
+            <div className="flex items-center gap-3 text-sm">
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                완료 {completedTasks}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-yellow-500" />
+                진행 {inProgressTasks}
+              </span>
+              <span className="flex items-center gap-1">
+                <ListTodo className="h-3.5 w-3.5 text-gray-400" />
+                대기 {waitingTasks}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Tabs - 진행 단계가 첫 번째 탭 (기본 선택) */}
+      <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="tasks">진행 단계</TabsTrigger>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* 진행 단계 탭 */}
+        <TabsContent value="tasks" className="space-y-4">
+          <TaskListV2
+            projectId={project.id}
+            tasks={project.tasks.map((task) => {
+              const getChecklistCount = (checklists: { status: ChecklistStatus }[]) => ({
+                total: checklists.length,
+                checked: checklists.filter((c) => c.status === ChecklistStatus.COMPLETED).length,
+              });
+              return {
+                id: task.id,
+                name: task.name,
+                sortOrder: task.sortOrder,
+                isActive: task.isActive,
+                startDate: task.startDate?.toISOString() ?? null,
+                dueDate: task.dueDate?.toISOString() ?? null,
+                completedDate: task.completedDate?.toISOString() ?? null,
+                version: task.version,
+                originTemplateTaskId: task.originTemplateTaskId,
+                checklistCount: getChecklistCount(task.checklists),
+                isPermitTask: task.isPermitTask,
+                processingDays: task.processingDays,
+                submittedDate: task.submittedDate?.toISOString() ?? null,
+                children: task.children.map((child) => ({
+                  id: child.id,
+                  name: child.name,
+                  sortOrder: child.sortOrder,
+                  isActive: child.isActive,
+                  startDate: child.startDate?.toISOString() ?? null,
+                  dueDate: child.dueDate?.toISOString() ?? null,
+                  completedDate: child.completedDate?.toISOString() ?? null,
+                  version: child.version,
+                  originTemplateTaskId: child.originTemplateTaskId,
+                  checklistCount: getChecklistCount(child.checklists),
+                  children: [],
+                })),
+              };
+            })}
+            isAdmin={false}
+            isClient={true}
+          />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
           <Card>

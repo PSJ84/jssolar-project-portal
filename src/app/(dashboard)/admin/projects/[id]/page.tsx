@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { ProjectStatus, ChecklistStatus } from "@prisma/client";
-import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock } from "lucide-react";
+import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock, CheckCircle2, AlertTriangle, ListTodo } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
 import { DocumentManagement } from "@/components/project/document-management";
@@ -155,68 +156,65 @@ export default async function AdminProjectDetailPage({
         </div>
       </div>
 
-      {/* Phase 2 Task List */}
-      <TaskListV2
-        projectId={project.id}
-        tasks={project.tasks.map((task) => {
-          const getChecklistCount = (checklists: { status: ChecklistStatus }[]) => ({
-            total: checklists.length,
-            checked: checklists.filter((c) => c.status === ChecklistStatus.COMPLETED).length,
-          });
-          return {
-            id: task.id,
-            name: task.name,
-            sortOrder: task.sortOrder,
-            isActive: task.isActive,
-            startDate: task.startDate?.toISOString() ?? null,
-            dueDate: task.dueDate?.toISOString() ?? null,
-            completedDate: task.completedDate?.toISOString() ?? null,
-            version: task.version,
-            originTemplateTaskId: task.originTemplateTaskId,
-            checklistCount: getChecklistCount(task.checklists),
-            isPermitTask: task.isPermitTask,
-            processingDays: task.processingDays,
-            submittedDate: task.submittedDate?.toISOString() ?? null,
-            children: task.children.map((child) => ({
-              id: child.id,
-              name: child.name,
-              sortOrder: child.sortOrder,
-              isActive: child.isActive,
-              startDate: child.startDate?.toISOString() ?? null,
-              dueDate: child.dueDate?.toISOString() ?? null,
-              completedDate: child.completedDate?.toISOString() ?? null,
-              version: child.version,
-              originTemplateTaskId: child.originTemplateTaskId,
-              checklistCount: getChecklistCount(child.checklists),
-              children: [],
-            })),
-          };
-        })}
-        isAdmin={true}
-      />
+      {/* 요약 바 - 컴팩트한 한 줄 */}
+      {(() => {
+        // 태스크 통계 계산
+        const activeTasks = project.tasks.filter(t => t.isActive);
+        const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
+        const totalTasks = allChildTasks.length;
+        const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
+        const inProgressTasks = allChildTasks.filter(c => !c.completedDate && c.startDate !== null).length;
+        const waitingTasks = allChildTasks.filter(c => !c.completedDate && !c.startDate).length;
 
+        // 지연 태스크 계산 (dueDate < 오늘 && 미완료)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const overdueTasks = allChildTasks.filter(c => {
+          if (c.completedDate) return false;
+          if (!c.dueDate) return false;
+          const due = new Date(c.dueDate);
+          due.setHours(0, 0, 0, 0);
+          return due < today;
+        }).length;
 
+        const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-      {/* Status Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              진행률
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{project.progressPercent}%</div>
-          </CardContent>
-        </Card>
+        return (
+          <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/30 rounded-lg border">
+            {/* 진행률 */}
+            <div className="flex items-center gap-2 min-w-[120px]">
+              <Progress value={progressPercent} className="h-2 w-16" />
+              <span className="text-sm font-medium">{progressPercent}%</span>
+              <span className="text-xs text-muted-foreground">({completedTasks}/{totalTasks})</span>
+            </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              상태
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            <span className="text-muted-foreground">·</span>
+
+            {/* 상태별 카운트 */}
+            <div className="flex items-center gap-3 text-sm">
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                완료 {completedTasks}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-yellow-500" />
+                진행 {inProgressTasks}
+              </span>
+              <span className="flex items-center gap-1">
+                <ListTodo className="h-3.5 w-3.5 text-gray-400" />
+                대기 {waitingTasks}
+              </span>
+              {overdueTasks > 0 && (
+                <span className="flex items-center gap-1 text-destructive font-medium">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  지연 {overdueTasks}
+                </span>
+              )}
+            </div>
+
+            <span className="text-muted-foreground">·</span>
+
+            {/* 상태 배지 */}
             <Badge
               variant={
                 project.status === "ACTIVE"
@@ -225,30 +223,24 @@ export default async function AdminProjectDetailPage({
                   ? "secondary"
                   : "outline"
               }
+              className="text-xs"
             >
               {statusLabels[project.status]}
             </Badge>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              멤버
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              <span className="text-2xl font-bold">{project.members.length}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            {/* 멤버 */}
+            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              {project.members.length}명
+            </span>
+          </div>
+        );
+      })()}
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+      {/* Tabs - 진행 단계가 첫 번째 탭 (기본 선택) */}
+      <Tabs defaultValue="tasks" className="space-y-4">
+        <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="tasks">진행 단계</TabsTrigger>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
@@ -258,6 +250,48 @@ export default async function AdminProjectDetailPage({
           </TabsTrigger>
           <TabsTrigger value="activity">활동</TabsTrigger>
         </TabsList>
+
+        {/* 진행 단계 탭 */}
+        <TabsContent value="tasks" className="space-y-4">
+          <TaskListV2
+            projectId={project.id}
+            tasks={project.tasks.map((task) => {
+              const getChecklistCount = (checklists: { status: ChecklistStatus }[]) => ({
+                total: checklists.length,
+                checked: checklists.filter((c) => c.status === ChecklistStatus.COMPLETED).length,
+              });
+              return {
+                id: task.id,
+                name: task.name,
+                sortOrder: task.sortOrder,
+                isActive: task.isActive,
+                startDate: task.startDate?.toISOString() ?? null,
+                dueDate: task.dueDate?.toISOString() ?? null,
+                completedDate: task.completedDate?.toISOString() ?? null,
+                version: task.version,
+                originTemplateTaskId: task.originTemplateTaskId,
+                checklistCount: getChecklistCount(task.checklists),
+                isPermitTask: task.isPermitTask,
+                processingDays: task.processingDays,
+                submittedDate: task.submittedDate?.toISOString() ?? null,
+                children: task.children.map((child) => ({
+                  id: child.id,
+                  name: child.name,
+                  sortOrder: child.sortOrder,
+                  isActive: child.isActive,
+                  startDate: child.startDate?.toISOString() ?? null,
+                  dueDate: child.dueDate?.toISOString() ?? null,
+                  completedDate: child.completedDate?.toISOString() ?? null,
+                  version: child.version,
+                  originTemplateTaskId: child.originTemplateTaskId,
+                  checklistCount: getChecklistCount(child.checklists),
+                  children: [],
+                })),
+              };
+            })}
+            isAdmin={true}
+          />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
           <ProjectOverviewEdit
