@@ -20,7 +20,7 @@ export async function GET() {
       );
     }
 
-    // 시스템 템플릿 조회 (메인 + 하위)
+    // 시스템 템플릿 조회 (메인 + 하위 + 체크리스트)
     const templates = await prisma.taskTemplate.findMany({
       where: {
         isSystem: true,
@@ -30,6 +30,11 @@ export async function GET() {
       include: {
         children: {
           orderBy: { sortOrder: "asc" },
+          include: {
+            checklistTemplates: {
+              orderBy: { sortOrder: "asc" },
+            },
+          },
         },
       },
       orderBy: { sortOrder: "asc" },

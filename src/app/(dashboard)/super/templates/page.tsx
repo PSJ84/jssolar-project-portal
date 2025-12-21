@@ -60,12 +60,23 @@ import {
   Loader2,
   ListTodo,
   ChevronDown,
+  ChevronRight,
   Pencil,
   Trash2,
   GripVertical,
   FileCheck,
+  ClipboardList,
+  X,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface ChecklistTemplate {
+  id: string;
+  name: string;
+  sortOrder: number;
+  taskTemplateId: string;
+}
 
 interface TaskTemplate {
   id: string;
@@ -76,6 +87,7 @@ interface TaskTemplate {
   isPermitTask: boolean;
   processingDays: number | null;
   children: TaskTemplate[];
+  checklistTemplates?: ChecklistTemplate[];
 }
 
 export default function TemplatesPage() {
@@ -529,6 +541,7 @@ export default function TemplatesPage() {
                       onAddChild={() => openAddChildDialog(template.id)}
                       onEdit={(t, pId, cId) => openEditDialog(t, pId, cId)}
                       onDelete={(t, pId, cId) => openDeleteDialog(t, pId, cId)}
+                      onChecklistChange={fetchTemplates}
                     />
                   ))}
                 </div>
@@ -705,6 +718,7 @@ interface SortableMainTemplateProps {
   onAddChild: () => void;
   onEdit: (template: TaskTemplate, parentId?: string, childId?: string) => void;
   onDelete: (template: TaskTemplate, parentId?: string, childId?: string) => void;
+  onChecklistChange: () => void;
 }
 
 function SortableMainTemplate({
@@ -717,6 +731,7 @@ function SortableMainTemplate({
   onAddChild,
   onEdit,
   onDelete,
+  onChecklistChange,
 }: SortableMainTemplateProps) {
   const {
     attributes,
@@ -848,6 +863,7 @@ function SortableMainTemplate({
                         parentId={template.id}
                         onEdit={onEdit}
                         onDelete={onDelete}
+                        onChecklistChange={onChecklistChange}
                       />
                     ))}
                   </div>
@@ -868,6 +884,7 @@ interface SortableChildTemplateProps {
   parentId: string;
   onEdit: (template: TaskTemplate, parentId?: string, childId?: string) => void;
   onDelete: (template: TaskTemplate, parentId?: string, childId?: string) => void;
+  onChecklistChange: () => void;
 }
 
 function SortableChildTemplate({
@@ -876,7 +893,14 @@ function SortableChildTemplate({
   parentId,
   onEdit,
   onDelete,
+  onChecklistChange,
 }: SortableChildTemplateProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [newChecklistName, setNewChecklistName] = useState("");
+  const [isAddingChecklist, setIsAddingChecklist] = useState(false);
+  const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null);
+  const [editingChecklistName, setEditingChecklistName] = useState("");
+
   const {
     attributes,
     listeners,
@@ -891,57 +915,243 @@ function SortableChildTemplate({
     transition,
   };
 
+  const checklists = template.checklistTemplates || [];
+
+  // 체크리스트 추가
+  const handleAddChecklist = async () => {
+    if (!newChecklistName.trim()) return;
+
+    setIsAddingChecklist(true);
+    try {
+      const res = await fetch(`/api/super/templates/${template.id}/checklists`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newChecklistName.trim() }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add checklist");
+
+      setNewChecklistName("");
+      onChecklistChange();
+      toast.success("체크리스트가 추가되었습니다.");
+    } catch (error) {
+      toast.error("체크리스트 추가에 실패했습니다.");
+    } finally {
+      setIsAddingChecklist(false);
+    }
+  };
+
+  // 체크리스트 수정
+  const handleEditChecklist = async (checklistId: string) => {
+    if (!editingChecklistName.trim()) return;
+
+    try {
+      const res = await fetch(`/api/super/templates/${template.id}/checklists`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          checklistId,
+          name: editingChecklistName.trim(),
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update checklist");
+
+      setEditingChecklistId(null);
+      onChecklistChange();
+      toast.success("수정되었습니다.");
+    } catch (error) {
+      toast.error("수정에 실패했습니다.");
+    }
+  };
+
+  // 체크리스트 삭제
+  const handleDeleteChecklist = async (checklistId: string) => {
+    try {
+      const res = await fetch(
+        `/api/super/templates/${template.id}/checklists?checklistId=${checklistId}`,
+        { method: "DELETE" }
+      );
+
+      if (!res.ok) throw new Error("Failed to delete checklist");
+
+      onChecklistChange();
+      toast.success("삭제되었습니다.");
+    } catch (error) {
+      toast.error("삭제에 실패했습니다.");
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 p-2 rounded bg-background border",
+        "rounded bg-background border",
         isDragging && "shadow-md ring-2 ring-primary ring-offset-1 z-50"
       )}
     >
-      {/* 드래그 핸들 */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
-      >
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
-      </button>
-
-      {/* 순서 번호 */}
-      <span className="text-xs text-muted-foreground w-4 text-center">
-        {index + 1}
-      </span>
-
-      {/* 이름 */}
-      <span className="text-sm flex-1">{template.name}</span>
-
-      {/* 액션 버튼 */}
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(template, parentId, template.id);
-          }}
+      <div className="flex items-center gap-2 p-2">
+        {/* 드래그 핸들 */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
         >
-          <Pencil className="h-3 w-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-destructive"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(template, parentId, template.id);
-          }}
+          <GripVertical className="h-3 w-3 text-muted-foreground" />
+        </button>
+
+        {/* 순서 번호 */}
+        <span className="text-xs text-muted-foreground w-4 text-center">
+          {index + 1}
+        </span>
+
+        {/* 체크리스트 펼침/접힘 */}
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-1 hover:bg-muted rounded"
         >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+          {isExpanded ? (
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          )}
+        </button>
+
+        {/* 이름 */}
+        <span className="text-sm flex-1">{template.name}</span>
+
+        {/* 체크리스트 수 */}
+        {checklists.length > 0 && (
+          <Badge variant="outline" className="text-xs">
+            <ClipboardList className="h-3 w-3 mr-1" />
+            {checklists.length}
+          </Badge>
+        )}
+
+        {/* 액션 버튼 */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(template, parentId, template.id);
+            }}
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(template, parentId, template.id);
+            }}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
+
+      {/* 체크리스트 목록 */}
+      {isExpanded && (
+        <div className="border-t bg-muted/20 p-2 pl-10 space-y-1">
+          {checklists.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-1">체크리스트 없음</p>
+          ) : (
+            checklists.map((cl) => (
+              <div
+                key={cl.id}
+                className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50 group"
+              >
+                {editingChecklistId === cl.id ? (
+                  <>
+                    <Input
+                      value={editingChecklistName}
+                      onChange={(e) => setEditingChecklistName(e.target.value)}
+                      className="h-6 text-xs flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleEditChecklist(cl.id);
+                        if (e.key === "Escape") setEditingChecklistId(null);
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => handleEditChecklist(cl.id)}
+                    >
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => setEditingChecklistId(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs flex-1">{cl.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                      onClick={() => {
+                        setEditingChecklistId(cl.id);
+                        setEditingChecklistName(cl.name);
+                      }}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
+                      onClick={() => handleDeleteChecklist(cl.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* 새 체크리스트 추가 */}
+          <div className="flex items-center gap-2 pt-1">
+            <Input
+              value={newChecklistName}
+              onChange={(e) => setNewChecklistName(e.target.value)}
+              placeholder="새 체크리스트 추가"
+              className="h-6 text-xs flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAddChecklist();
+              }}
+              disabled={isAddingChecklist}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-6 w-6"
+              onClick={handleAddChecklist}
+              disabled={!newChecklistName.trim() || isAddingChecklist}
+            >
+              {isAddingChecklist ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Plus className="h-3 w-3" />
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
