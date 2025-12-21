@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
 
 // Helper function to check project access
-async function checkProjectAccess(projectId: string, userId: string, role: UserRole) {
-  if (role === UserRole.SUPER_ADMIN || role === UserRole.ADMIN) {
+async function checkProjectAccess(projectId: string, userId: string, role: string) {
+  if (role === "SUPER_ADMIN" || role === "ADMIN") {
     return true;
   }
 
@@ -119,7 +118,8 @@ export async function PATCH(
       );
     }
 
-    if (![UserRole.SUPER_ADMIN, UserRole.ADMIN].includes(session.user.role)) {
+    const role = session.user.role as string;
+    if (!["SUPER_ADMIN", "ADMIN"].includes(role)) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
         { status: 403 }
@@ -262,7 +262,8 @@ export async function DELETE(
       );
     }
 
-    if (![UserRole.SUPER_ADMIN, UserRole.ADMIN].includes(session.user.role)) {
+    const role = session.user.role as string;
+    if (!["SUPER_ADMIN", "ADMIN"].includes(role)) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
         { status: 403 }
