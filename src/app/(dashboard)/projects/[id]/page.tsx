@@ -246,12 +246,32 @@ export default async function ClientProjectDetailPage({
       {/* 요약 바 - 컴팩트한 한 줄 */}
       {(() => {
         // 태스크 통계 계산
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const activeTasks = project.tasks.filter(t => t.isActive);
         const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
         const totalTasks = allChildTasks.length;
         const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
-        const inProgressTasks = allChildTasks.filter(c => !c.completedDate && c.startDate !== null).length;
-        const waitingTasks = allChildTasks.filter(c => !c.completedDate && !c.startDate).length;
+
+        // 진행중: startDate가 오늘 이하이고 미완료
+        const inProgressTasks = allChildTasks.filter(c => {
+          if (c.completedDate) return false;
+          if (!c.startDate) return false;
+          const start = new Date(c.startDate);
+          start.setHours(0, 0, 0, 0);
+          return start <= today;
+        }).length;
+
+        // 대기: startDate 없거나 미래
+        const waitingTasks = allChildTasks.filter(c => {
+          if (c.completedDate) return false;
+          if (!c.startDate) return true;
+          const start = new Date(c.startDate);
+          start.setHours(0, 0, 0, 0);
+          return start > today;
+        }).length;
+
         const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
         return (

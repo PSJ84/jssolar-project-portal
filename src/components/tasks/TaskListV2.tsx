@@ -142,11 +142,20 @@ function getMainTaskStatus(task: TaskWithChildren): MainTaskStatus {
     };
   }
 
-  // 진행중: startDate 있거나 활성 하위 중 진행/완료된 것 있음
-  const hasProgress = task.startDate || activeChildren.some(
-    (c) => c.completedDate || c.startDate
-  );
-  if (hasProgress) {
+  // 진행중: startDate가 오늘 이하거나 활성 하위 중 진행/완료된 것 있음
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const isStarted = task.startDate && new Date(task.startDate).setHours(0, 0, 0, 0) <= today.getTime();
+  const hasChildProgress = activeChildren.some((c) => {
+    if (c.completedDate) return true;
+    if (!c.startDate) return false;
+    const start = new Date(c.startDate);
+    start.setHours(0, 0, 0, 0);
+    return start <= today;
+  });
+
+  if (isStarted || hasChildProgress) {
     return {
       status: "in_progress",
       label: "진행중",
