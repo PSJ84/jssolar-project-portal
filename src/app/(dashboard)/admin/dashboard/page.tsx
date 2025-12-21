@@ -30,6 +30,7 @@ export default async function AdminDashboardPage() {
       id: true,
       name: true,
       dueDate: true,
+      assigneeId: true,
       project: { select: { id: true, name: true } },
       parent: { select: { id: true, name: true } },
     },
@@ -41,6 +42,7 @@ export default async function AdminDashboardPage() {
     id: task.id,
     name: task.name,
     dueDate: task.dueDate!.toISOString(),
+    assigneeId: task.assigneeId,
     project: task.project,
     parent: task.parent,
   }));
@@ -51,7 +53,7 @@ export default async function AdminDashboardPage() {
         <h1 className="text-2xl font-bold">내일 뭐하지?</h1>
       </div>
 
-      <DashboardTaskList tasks={formattedTasks} />
+      <DashboardTaskList tasks={formattedTasks} currentUserId={session.user.id} />
     </div>
   );
 }
