@@ -187,6 +187,7 @@ function SortableChecklistItem({
       {/* 드래그 핸들 (Admin만) */}
       {isAdmin && (
         <button
+          type="button"
           className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
           {...attributes}
           {...listeners}
@@ -196,14 +197,17 @@ function SortableChecklistItem({
       )}
 
       {/* 상태 드롭다운 */}
-      <Select
-        value={item.status}
-        onValueChange={(value) =>
-          isAdmin && onStatusChange(item, value as ChecklistStatus)
-        }
-        disabled={!isAdmin}
-      >
-        <SelectTrigger className="w-[120px] h-8">
+      <div onPointerDown={(e) => e.stopPropagation()}>
+        <Select
+          value={item.status}
+          onValueChange={(value) => {
+            if (isAdmin) {
+              onStatusChange(item, value as ChecklistStatus);
+            }
+          }}
+          disabled={!isAdmin}
+        >
+          <SelectTrigger className="w-[120px] h-8">
           <Badge
             variant="outline"
             className={cn(
@@ -233,7 +237,8 @@ function SortableChecklistItem({
             </SelectItem>
           ))}
         </SelectContent>
-      </Select>
+        </Select>
+      </div>
 
       {/* 내용 */}
       <span
@@ -252,6 +257,7 @@ function SortableChecklistItem({
           size="icon"
           className="h-7 w-7 text-destructive hover:text-destructive"
           onClick={() => onDelete(item.id)}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
