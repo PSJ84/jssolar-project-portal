@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ProjectStatus, ChecklistStatus } from "@prisma/client";
-import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock, CheckCircle2, AlertTriangle, ListTodo } from "lucide-react";
+import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock, CheckCircle2, AlertTriangle, ListTodo, ClipboardList } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
 import { DocumentManagement } from "@/components/project/document-management";
 import { ProjectOverviewEdit } from "@/components/project/project-overview-edit";
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
+import { TodoList } from "@/components/todos/TodoList";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -119,6 +120,19 @@ export default async function AdminProjectDetailPage({
       id: true,
       name: true,
       email: true,
+    },
+    orderBy: { name: "asc" },
+  });
+
+  // ADMIN/SUPER_ADMIN 사용자 조회 (할 일 담당자용)
+  const adminUsers = await prisma.user.findMany({
+    where: {
+      role: { in: ["ADMIN", "SUPER_ADMIN"] },
+      organizationId: project.organizationId,
+    },
+    select: {
+      id: true,
+      name: true,
     },
     orderBy: { name: "asc" },
   });
@@ -256,6 +270,7 @@ export default async function AdminProjectDetailPage({
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="tasks">진행 단계</TabsTrigger>
+          <TabsTrigger value="todos">할 일</TabsTrigger>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
@@ -305,6 +320,15 @@ export default async function AdminProjectDetailPage({
               };
             })}
             isAdmin={true}
+          />
+        </TabsContent>
+
+        {/* 할 일 탭 */}
+        <TabsContent value="todos" className="space-y-4">
+          <TodoList
+            projectId={project.id}
+            isAdmin={true}
+            members={adminUsers}
           />
         </TabsContent>
 

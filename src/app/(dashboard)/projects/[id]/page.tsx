@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 import { ClientProgressSummary } from "@/components/tasks/ClientProgressSummary";
+import { TodoList } from "@/components/todos/TodoList";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -270,6 +271,7 @@ export default async function ClientProjectDetailPage({
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
           <TabsTrigger value="tasks">진행 단계</TabsTrigger>
+          <TabsTrigger value="todos">할 일</TabsTrigger>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
@@ -317,6 +319,14 @@ export default async function ClientProjectDetailPage({
             isAdmin={false}
             isClient={true}
             hideProgressSummary={true}
+          />
+        </TabsContent>
+
+        {/* 할 일 탭 */}
+        <TabsContent value="todos" className="space-y-4">
+          <TodoList
+            projectId={project.id}
+            isAdmin={false}
           />
         </TabsContent>
 

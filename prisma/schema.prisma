@@ -57,6 +57,12 @@ model User {
   activities         Activity[]
   assignedTasks             Task[]      @relation("TaskAssignee")
   statusChangedChecklists   Checklist[]
+
+  // Todo relations
+  assignedTodos             Todo[]      @relation("TodoAssignee")
+  createdTodos              Todo[]      @relation("TodoCreatedBy")
+  completedTodos            Todo[]      @relation("TodoCompletedBy")
+
   createdAt                 DateTime    @default(now())
   updatedAt          DateTime          @updatedAt
 }
@@ -132,6 +138,7 @@ model Project {
   activities   Activity[]
   projectTasks ProjectTask[]  // 레거시 (기존 프로젝트용)
   tasks        Task[]         // Phase 2 새 태스크 시스템
+  todos        Todo[]         // 할 일 목록
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -305,6 +312,13 @@ enum ChecklistStatus {
   COMPLETED // 완료
 }
 
+// Todo priority
+enum TodoPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
 // ==================== Phase 2: 태스크 템플릿 ====================
 
 model TaskTemplate {
@@ -414,4 +428,34 @@ model Checklist {
   updatedAt DateTime @updatedAt
 
   @@index([taskId, sortOrder])
+}
+
+// ==================== 할 일 (Todo) ====================
+
+model Todo {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?   @db.Text
+  dueDate     DateTime?
+  priority    TodoPriority @default(MEDIUM)
+
+  assigneeId  String?
+  assignee    User?     @relation("TodoAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  completedDate DateTime?
+  completedById String?
+  completedBy   User?   @relation("TodoCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User      @relation("TodoCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([projectId, completedDate])
+  @@index([assigneeId, completedDate])
+  @@index([projectId, dueDate])
 }
