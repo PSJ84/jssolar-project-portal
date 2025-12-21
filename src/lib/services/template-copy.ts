@@ -15,7 +15,7 @@ export async function copyTemplateToProject(
   tx: TransactionClient,
   projectId: string,
   organizationId: string
-): Promise<{ mainCount: number; childCount: number }> {
+): Promise<{ mainCount: number; childCount: number; checklistCount: number }> {
   // 1. 조직의 defaultTemplateId 확인
   const organization = await tx.organization.findUnique({
     where: { id: organizationId },
@@ -34,6 +34,11 @@ export async function copyTemplateToProject(
       include: {
         children: {
           orderBy: { sortOrder: "asc" },
+          include: {
+            checklistTemplates: {
+              orderBy: { sortOrder: "asc" },
+            },
+          },
         },
       },
       orderBy: { sortOrder: "asc" },
@@ -51,6 +56,11 @@ export async function copyTemplateToProject(
       include: {
         children: {
           orderBy: { sortOrder: "asc" },
+          include: {
+            checklistTemplates: {
+              orderBy: { sortOrder: "asc" },
+            },
+          },
         },
       },
       orderBy: { sortOrder: "asc" },
@@ -58,7 +68,7 @@ export async function copyTemplateToProject(
   }
 
   if (mainTemplates.length === 0) {
-    return { mainCount: 0, childCount: 0 };
+    return { mainCount: 0, childCount: 0, checklistCount: 0 };
   }
 
   // 2. 메인 태스크 일괄 생성 (createMany)
@@ -135,8 +145,62 @@ export async function copyTemplateToProject(
     });
   }
 
+  // 5. 생성된 하위 태스크 조회 (originTemplateTaskId로 매핑)
+  const createdChildTasks = await tx.task.findMany({
+    where: {
+      projectId,
+      parentId: { not: null },
+    },
+    select: {
+      id: true,
+      originTemplateTaskId: true,
+    },
+  });
+
+  // originTemplateTaskId → childTaskId 매핑
+  const childTemplateToTaskMap = new Map<string, string>();
+  for (const task of createdChildTasks) {
+    if (task.originTemplateTaskId) {
+      childTemplateToTaskMap.set(task.originTemplateTaskId, task.id);
+    }
+  }
+
+  // 6. 체크리스트 데이터 준비 및 일괄 생성
+  const checklistsData: {
+    taskId: string;
+    name: string;
+    sortOrder: number;
+  }[] = [];
+
+  for (const mainTemplate of mainTemplates) {
+    for (const childTemplate of mainTemplate.children) {
+      const taskId = childTemplateToTaskMap.get(childTemplate.id);
+      if (!taskId) continue;
+
+      // checklistTemplates가 있는지 확인
+      if (childTemplate.checklistTemplates && childTemplate.checklistTemplates.length > 0) {
+        for (const clTemplate of childTemplate.checklistTemplates) {
+          checklistsData.push({
+            taskId,
+            name: clTemplate.name,
+            sortOrder: clTemplate.sortOrder,
+          });
+        }
+      }
+    }
+  }
+
+  let checklistCount = 0;
+  if (checklistsData.length > 0) {
+    await tx.checklist.createMany({
+      data: checklistsData,
+    });
+    checklistCount = checklistsData.length;
+  }
+
   return {
     mainCount: mainTasksData.length,
     childCount: childTasksData.length,
+    checklistCount,
   };
 }

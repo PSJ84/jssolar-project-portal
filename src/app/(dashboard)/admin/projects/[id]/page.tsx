@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProjectStatus } from "@prisma/client";
+import { ProjectStatus, ChecklistStatus } from "@prisma/client";
 import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
@@ -87,12 +87,12 @@ export default async function AdminProjectDetailPage({
             orderBy: { sortOrder: "asc" },
             include: {
               checklists: {
-                select: { isChecked: true },
+                select: { status: true },
               },
             },
           },
           checklists: {
-            select: { isChecked: true },
+            select: { status: true },
           },
         },
         orderBy: { sortOrder: "asc" },
@@ -159,9 +159,9 @@ export default async function AdminProjectDetailPage({
       <TaskListV2
         projectId={project.id}
         tasks={project.tasks.map((task) => {
-          const getChecklistCount = (checklists: { isChecked: boolean }[]) => ({
+          const getChecklistCount = (checklists: { status: ChecklistStatus }[]) => ({
             total: checklists.length,
-            checked: checklists.filter((c) => c.isChecked).length,
+            checked: checklists.filter((c) => c.status === ChecklistStatus.COMPLETED).length,
           });
           return {
             id: task.id,

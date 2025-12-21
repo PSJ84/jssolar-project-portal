@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
+import { UserRole, ChecklistStatus } from "@prisma/client";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -76,21 +76,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           orderBy: { sortOrder: "asc" },
           include: {
             checklists: {
-              select: { isChecked: true },
+              select: { status: true },
             },
           },
         },
         checklists: {
-          select: { isChecked: true },
+          select: { status: true },
         },
       },
       orderBy: { sortOrder: "asc" },
     });
 
     // 체크리스트 카운트 계산 헬퍼
-    const getChecklistCount = (checklists: { isChecked: boolean }[]) => ({
+    const getChecklistCount = (checklists: { status: ChecklistStatus }[]) => ({
       total: checklists.length,
-      checked: checklists.filter((c) => c.isChecked).length,
+      checked: checklists.filter((c) => c.status === ChecklistStatus.COMPLETED).length,
     });
 
     // 응답 형식 변환

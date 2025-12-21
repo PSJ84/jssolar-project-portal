@@ -107,7 +107,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       checklists: task.checklists.map((cl) => ({
         id: cl.id,
         content: cl.name,
-        isChecked: cl.isChecked,
+        status: cl.status,
         sortOrder: cl.sortOrder,
       })),
     });
@@ -340,7 +340,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       checklists: updated.checklists.map((cl) => ({
         id: cl.id,
         content: cl.name,
-        isChecked: cl.isChecked,
+        status: cl.status,
         sortOrder: cl.sortOrder,
       })),
     });

@@ -20,22 +20,73 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
   Plus,
   Trash2,
-  CheckCircle2,
-  Circle,
   Lock,
   FileCheck,
+  Clock,
+  Send,
+  FileInput,
+  Search,
+  AlertTriangle,
+  CheckCircle2,
+  Download,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
+// 체크리스트 상태 정의
+type ChecklistStatus =
+  | "PENDING"
+  | "REQUESTED"
+  | "RECEIVED"
+  | "REVIEWING"
+  | "REVISION"
+  | "COMPLETED";
+
+const CHECKLIST_STATUS_CONFIG: Record<
+  ChecklistStatus,
+  { label: string; color: string; icon: React.ReactNode }
+> = {
+  PENDING: {
+    label: "대기",
+    color: "bg-gray-100 text-gray-700 border-gray-200",
+    icon: <Clock className="h-3 w-3" />,
+  },
+  REQUESTED: {
+    label: "요청함",
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    icon: <Send className="h-3 w-3" />,
+  },
+  RECEIVED: {
+    label: "수령완료",
+    color: "bg-green-100 text-green-700 border-green-200",
+    icon: <FileInput className="h-3 w-3" />,
+  },
+  REVIEWING: {
+    label: "검토중",
+    color: "bg-blue-100 text-blue-700 border-blue-200",
+    icon: <Search className="h-3 w-3" />,
+  },
+  REVISION: {
+    label: "보완필요",
+    color: "bg-red-100 text-red-700 border-red-200",
+    icon: <AlertTriangle className="h-3 w-3" />,
+  },
+  COMPLETED: {
+    label: "완료",
+    color: "bg-green-100 text-green-700 border-green-200",
+    icon: <CheckCircle2 className="h-3 w-3" />,
+  },
+};
+
 interface ChecklistItem {
   id: string;
   content: string;
-  isChecked: boolean;
+  status: ChecklistStatus;
   sortOrder: number;
 }
 
@@ -96,6 +147,7 @@ export function TaskDetailSheet({
   const [memo, setMemo] = useState("");
   const [assigneeId, setAssigneeId] = useState<string>("");
   const [newChecklistContent, setNewChecklistContent] = useState("");
+  const [importingTemplate, setImportingTemplate] = useState(false);
 
   // 인허가 상태
   const [submittedDate, setSubmittedDate] = useState<Date | undefined>();
@@ -165,12 +217,11 @@ export function TaskDetailSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           startDate: startDate?.toISOString() || null,
-          dueDate: task.isPermitTask ? undefined : (dueDate?.toISOString() || null), // 인허가는 자동 계산
+          dueDate: task.isPermitTask ? undefined : (dueDate?.toISOString() || null),
           completedDate: completedDate?.toISOString() || null,
           memo: memo.trim() || null,
           assigneeId: assigneeId || null,
           version: task.version,
-          // 인허가 필드
           submittedDate: submittedDate?.toISOString() || null,
           processingDays: processingDays,
         }),
@@ -220,8 +271,8 @@ export function TaskDetailSheet({
     }
   };
 
-  // Toggle checklist item
-  const handleToggleChecklist = async (item: ChecklistItem) => {
+  // Update checklist status
+  const handleStatusChange = async (item: ChecklistItem, newStatus: ChecklistStatus) => {
     if (!task) return;
 
     try {
@@ -232,7 +283,7 @@ export function TaskDetailSheet({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             checklistId: item.id,
-            isChecked: !item.isChecked,
+            status: newStatus,
           }),
         }
       );
@@ -252,7 +303,7 @@ export function TaskDetailSheet({
       );
     } catch (error) {
       console.error(error);
-      toast.error("업데이트에 실패했습니다.");
+      toast.error("상태 변경에 실패했습니다.");
     }
   };
 
@@ -282,6 +333,59 @@ export function TaskDetailSheet({
       toast.error("삭제에 실패했습니다.");
     }
   };
+
+  // 템플릿에서 체크리스트 가져오기
+  const handleImportFromTemplate = async () => {
+    if (!task) return;
+
+    setImportingTemplate(true);
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/tasks-v2/${taskId}/checklists/import-template`,
+        { method: "POST" }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to import");
+      }
+
+      const data = await res.json();
+
+      if (data.addedCount > 0) {
+        // 새로 추가된 체크리스트를 목록에 추가
+        setTask((prev) =>
+          prev
+            ? {
+                ...prev,
+                checklists: [...prev.checklists, ...data.checklists],
+              }
+            : prev
+        );
+        toast.success(`${data.addedCount}개 항목을 가져왔습니다.`);
+      } else if (data.skippedCount > 0) {
+        toast.info("모든 항목이 이미 존재합니다.");
+      } else {
+        toast.info("가져올 항목이 없습니다.");
+      }
+    } catch (error) {
+      console.error(error);
+      if (error instanceof Error && error.message.includes("No matching template")) {
+        toast.error("연결된 템플릿이 없습니다.");
+      } else if (error instanceof Error && error.message.includes("no checklists")) {
+        toast.error("템플릿에 체크리스트가 없습니다.");
+      } else {
+        toast.error("가져오기에 실패했습니다.");
+      }
+    } finally {
+      setImportingTemplate(false);
+    }
+  };
+
+  // 완료된 체크리스트 개수 계산
+  const completedCount = task?.checklists.filter(
+    (c) => c.status === "COMPLETED"
+  ).length ?? 0;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -479,8 +583,7 @@ export function TaskDetailSheet({
                 </Label>
                 {hasTaskDetailFeature && (
                   <span className="text-xs text-muted-foreground">
-                    {task.checklists.filter((c) => c.isChecked).length}/
-                    {task.checklists.length} 완료
+                    {completedCount}/{task.checklists.length} 완료
                   </span>
                 )}
               </div>
@@ -495,46 +598,83 @@ export function TaskDetailSheet({
               ) : (
                 <>
                   <div className="space-y-2">
-                    {task.checklists.map((item) => (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          "flex items-center gap-2 p-2 rounded-md border",
-                          item.isChecked && "bg-muted/50"
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => isAdmin && handleToggleChecklist(item)}
-                          disabled={!isAdmin}
-                          className="shrink-0"
-                        >
-                          {item.isChecked ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <Circle className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </button>
-                        <span
+                    {task.checklists.map((item) => {
+                      const statusConfig = CHECKLIST_STATUS_CONFIG[item.status];
+                      return (
+                        <div
+                          key={item.id}
                           className={cn(
-                            "flex-1 text-sm",
-                            item.isChecked && "line-through text-muted-foreground"
+                            "flex items-center gap-2 p-2 rounded-md border",
+                            item.status === "COMPLETED" && "bg-muted/50"
                           )}
                         >
-                          {item.content}
-                        </span>
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteChecklist(item.id)}
+                          {/* 상태 드롭다운 */}
+                          <Select
+                            value={item.status}
+                            onValueChange={(value) =>
+                              isAdmin && handleStatusChange(item, value as ChecklistStatus)
+                            }
+                            disabled={!isAdmin}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                            <SelectTrigger className="w-[120px] h-8">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "flex items-center gap-1 font-normal",
+                                  statusConfig.color
+                                )}
+                              >
+                                {statusConfig.icon}
+                                {statusConfig.label}
+                              </Badge>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(CHECKLIST_STATUS_CONFIG).map(
+                                ([status, config]) => (
+                                  <SelectItem key={status} value={status}>
+                                    <div className="flex items-center gap-2">
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "flex items-center gap-1 font-normal",
+                                          config.color
+                                        )}
+                                      >
+                                        {config.icon}
+                                        {config.label}
+                                      </Badge>
+                                    </div>
+                                  </SelectItem>
+                                )
+                              )}
+                            </SelectContent>
+                          </Select>
+
+                          {/* 내용 */}
+                          <span
+                            className={cn(
+                              "flex-1 text-sm",
+                              item.status === "COMPLETED" &&
+                                "line-through text-muted-foreground"
+                            )}
+                          >
+                            {item.content}
+                          </span>
+
+                          {/* 삭제 버튼 */}
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteChecklist(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {isAdmin && (
@@ -557,6 +697,20 @@ export function TaskDetailSheet({
                         disabled={!newChecklistContent.trim()}
                       >
                         <Plus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleImportFromTemplate}
+                        disabled={importingTemplate}
+                        title="템플릿에서 가져오기"
+                      >
+                        {importingTemplate ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        <span className="ml-1 hidden sm:inline">템플릿</span>
                       </Button>
                     </div>
                   )}

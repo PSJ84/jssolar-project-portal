@@ -55,9 +55,9 @@ model User {
   projectMemberships ProjectMember[]
   uploadedDocuments  DocumentVersion[]
   activities         Activity[]
-  assignedTasks      Task[]            @relation("TaskAssignee")
-  checkedChecklists  Checklist[]
-  createdAt          DateTime          @default(now())
+  assignedTasks             Task[]      @relation("TaskAssignee")
+  statusChangedChecklists   Checklist[]
+  createdAt                 DateTime    @default(now())
   updatedAt          DateTime          @updatedAt
 }
 
@@ -295,6 +295,16 @@ enum DocumentCategory {
   OTHER // 기타
 }
 
+// Checklist status
+enum ChecklistStatus {
+  PENDING // 대기
+  REQUESTED // 요청함
+  RECEIVED // 수령완료
+  REVIEWING // 검토중
+  REVISION // 보완필요
+  COMPLETED // 완료
+}
+
 // ==================== Phase 2: 태스크 템플릿 ====================
 
 model TaskTemplate {
@@ -393,12 +403,12 @@ model Checklist {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   name      String
-  isChecked Boolean @default(false)
-  sortOrder Int     @default(0)
+  status    ChecklistStatus @default(PENDING)
+  sortOrder Int             @default(0)
 
-  checkedAt   DateTime?
-  checkedById String?
-  checkedBy   User?     @relation(fields: [checkedById], references: [id], onDelete: SetNull)
+  statusChangedAt   DateTime?
+  statusChangedById String?
+  statusChangedBy   User?     @relation(fields: [statusChangedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

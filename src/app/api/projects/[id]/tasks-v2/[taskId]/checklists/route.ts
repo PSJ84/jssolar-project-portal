@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
+import { ChecklistStatus } from "@prisma/client";
 
 interface RouteParams {
   params: Promise<{ id: string; taskId: string }>;
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id: userId, role, organizationId } = session.user;
 
     // 접근 권한 확인
-    if (role === UserRole.CLIENT) {
+    if (role === "CLIENT") {
       const membership = await prisma.projectMember.findFirst({
         where: { projectId, userId },
       });
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           { status: 403 }
         );
       }
-    } else if (role === UserRole.ADMIN) {
+    } else if (role === "ADMIN") {
       const project = await prisma.project.findUnique({
         where: { id: projectId },
         select: { organizationId: true },
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       checklists.map((cl) => ({
         id: cl.id,
         content: cl.name,
-        isChecked: cl.isChecked,
+        status: cl.status,
         sortOrder: cl.sortOrder,
       }))
     );
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { role, organizationId } = session.user;
 
     // ADMIN/SUPER_ADMIN만 추가 가능
-    const isAdmin = role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+    const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
     if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // 조직 권한 확인 (ADMIN인 경우)
-    if (role === UserRole.ADMIN) {
+    if (role === "ADMIN") {
       const project = await prisma.project.findUnique({
         where: { id: projectId },
         select: { organizationId: true },
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       data: {
         taskId,
         name: content.trim(),
-        isChecked: false,
+        status: ChecklistStatus.PENDING,
         sortOrder: newSortOrder,
       },
     });
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       {
         id: checklist.id,
         content: checklist.name,
-        isChecked: checklist.isChecked,
+        status: checklist.status,
         sortOrder: checklist.sortOrder,
       },
       { status: 201 }
@@ -182,10 +182,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const { id: projectId, taskId } = await params;
-    const { role, organizationId } = session.user;
+    const { id: userId, role, organizationId } = session.user;
 
     // ADMIN/SUPER_ADMIN만 수정 가능
-    const isAdmin = role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+    const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
     if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
@@ -194,7 +194,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // 조직 권한 확인 (ADMIN인 경우)
-    if (role === UserRole.ADMIN) {
+    if (role === "ADMIN") {
       const project = await prisma.project.findUnique({
         where: { id: projectId },
         select: { organizationId: true },
@@ -208,7 +208,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { checklistId, content, isChecked, sortOrder } = body;
+    const { checklistId, content, status, sortOrder } = body;
 
     if (!checklistId) {
       return NextResponse.json(
@@ -235,8 +235,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // 업데이트 데이터 구성
     const updateData: {
       name?: string;
-      isChecked?: boolean;
+      status?: ChecklistStatus;
       sortOrder?: number;
+      statusChangedAt?: Date;
+      statusChangedById?: string;
     } = {};
 
     if (content !== undefined) {
@@ -249,8 +251,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateData.name = content.trim();
     }
 
-    if (isChecked !== undefined) {
-      updateData.isChecked = !!isChecked;
+    if (status !== undefined) {
+      // Validate status
+      const validStatuses = Object.values(ChecklistStatus);
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { error: `Invalid status. Valid values: ${validStatuses.join(", ")}` },
+          { status: 400 }
+        );
+      }
+      updateData.status = status;
+      updateData.statusChangedAt = new Date();
+      updateData.statusChangedById = userId;
     }
 
     if (sortOrder !== undefined) {
@@ -272,7 +284,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       id: updated.id,
       content: updated.name,
-      isChecked: updated.isChecked,
+      status: updated.status,
       sortOrder: updated.sortOrder,
     });
   } catch (error) {
@@ -297,7 +309,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { role, organizationId } = session.user;
 
     // ADMIN/SUPER_ADMIN만 삭제 가능
-    const isAdmin = role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+    const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
     if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
@@ -306,7 +318,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // 조직 권한 확인 (ADMIN인 경우)
-    if (role === UserRole.ADMIN) {
+    if (role === "ADMIN") {
       const project = await prisma.project.findUnique({
         where: { id: projectId },
         select: { organizationId: true },
