@@ -16,6 +16,7 @@ import { DashboardTaskList } from "./DashboardTaskList";
 interface DashboardTask {
   id: string;
   name: string;
+  startDate: string | null;
   dueDate: string;
   assigneeId: string | null;
   project: { id: string; name: string };

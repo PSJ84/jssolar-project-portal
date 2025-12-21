@@ -15,17 +15,22 @@ export default async function AdminDashboardPage() {
     redirect("/");
   }
 
-  // 1. 기한 있는 미완료 태스크 (기존)
+  // 1. 기한 있는 미완료 태스크 (시작된 태스크만)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const alertTasks = await prisma.task.findMany({
     where: {
       project: { organizationId, status: "ACTIVE" },
       isActive: true,
       completedDate: null,
       dueDate: { not: null },
+      startDate: { lte: today }, // 시작된 태스크만 (startDate <= 오늘)
     },
     select: {
       id: true,
       name: true,
+      startDate: true,
       dueDate: true,
       assigneeId: true,
       project: { select: { id: true, name: true } },
@@ -82,9 +87,7 @@ export default async function AdminDashboardPage() {
     },
   });
 
-  // 기한 초과 태스크 수
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // 기한 초과 태스크 수 (today는 위에서 이미 선언됨)
   const overdueCount = alertTasks.filter(
     (t) => new Date(t.dueDate!) < today
   ).length;
@@ -100,6 +103,7 @@ export default async function AdminDashboardPage() {
   const formattedTasks = alertTasks.map((task) => ({
     id: task.id,
     name: task.name,
+    startDate: task.startDate?.toISOString() ?? null,
     dueDate: task.dueDate!.toISOString(),
     assigneeId: task.assigneeId,
     project: task.project,

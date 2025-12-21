@@ -20,6 +20,7 @@ import { toast } from "sonner";
 interface DashboardTask {
   id: string;
   name: string;
+  startDate: string | null;
   dueDate: string;
   project: { id: string; name: string };
   parent: { id: string; name: string } | null;

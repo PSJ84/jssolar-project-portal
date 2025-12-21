@@ -10,6 +10,7 @@ interface TaskWithChildren {
   name: string;
   sortOrder: number;
   isActive: boolean;
+  startDate: string | null;
   dueDate: string | null;
   completedDate: string | null;
   isPermitTask?: boolean;
@@ -20,11 +21,26 @@ interface AdminTaskAlertProps {
   tasks: TaskWithChildren[];
 }
 
+// 오늘 날짜 (시간 제외)
+function getToday(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+// 태스크가 시작되었는지 확인 (startDate <= 오늘)
+function isTaskStarted(startDate: string | null): boolean {
+  if (!startDate) return false; // startDate 없으면 아직 시작 안 함
+  const today = getToday();
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  return start <= today;
+}
+
 // D-day 숫자 계산
 function getDdayNumber(dueDate: string | null): number | null {
   if (!dueDate) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getToday();
   const due = new Date(dueDate);
   due.setHours(0, 0, 0, 0);
   return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -45,8 +61,8 @@ export function AdminTaskAlert({ tasks }: AdminTaskAlertProps) {
   const alertTasks: AlertTask[] = [];
 
   tasks.filter(t => t.isActive).forEach((mainTask) => {
-    // 메인 태스크 체크
-    if (!mainTask.completedDate && mainTask.dueDate) {
+    // 메인 태스크 체크: 시작된 태스크만 (startDate <= 오늘)
+    if (!mainTask.completedDate && mainTask.dueDate && isTaskStarted(mainTask.startDate)) {
       const dday = getDdayNumber(mainTask.dueDate);
       if (dday !== null && dday <= 7) { // D-7 이내만
         alertTasks.push({
@@ -61,9 +77,9 @@ export function AdminTaskAlert({ tasks }: AdminTaskAlertProps) {
       }
     }
 
-    // 하위 태스크 체크
+    // 하위 태스크 체크: 시작된 태스크만 (startDate <= 오늘)
     mainTask.children.filter(c => c.isActive).forEach((child) => {
-      if (!child.completedDate && child.dueDate) {
+      if (!child.completedDate && child.dueDate && isTaskStarted(child.startDate)) {
         const dday = getDdayNumber(child.dueDate);
         if (dday !== null && dday <= 7) {
           alertTasks.push({
