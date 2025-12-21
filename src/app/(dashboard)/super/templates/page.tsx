@@ -900,6 +900,19 @@ function SortableChildTemplate({
   const [isAddingChecklist, setIsAddingChecklist] = useState(false);
   const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null);
   const [editingChecklistName, setEditingChecklistName] = useState("");
+  const [localChecklists, setLocalChecklists] = useState<ChecklistTemplate[]>(
+    template.checklistTemplates || []
+  );
+
+  // 체크리스트 DnD sensors
+  const checklistSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const {
     attributes,
@@ -915,7 +928,43 @@ function SortableChildTemplate({
     transition,
   };
 
-  const checklists = template.checklistTemplates || [];
+  // 외부에서 checklistTemplates가 변경되면 로컬 상태도 업데이트
+  useEffect(() => {
+    setLocalChecklists(template.checklistTemplates || []);
+  }, [template.checklistTemplates]);
+
+  const checklists = localChecklists;
+
+  // 체크리스트 순서 변경
+  const handleChecklistDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = checklists.findIndex((c) => c.id === active.id);
+    const newIndex = checklists.findIndex((c) => c.id === over.id);
+    const reordered = arrayMove(checklists, oldIndex, newIndex);
+
+    // 로컬 상태 먼저 업데이트 (낙관적 업데이트)
+    setLocalChecklists(reordered);
+
+    try {
+      const res = await fetch(
+        `/api/super/templates/${template.id}/checklists/reorder`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderedIds: reordered.map((c) => c.id) }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to reorder");
+      toast.success("순서가 변경되었습니다.");
+    } catch (error) {
+      toast.error("순서 변경에 실패했습니다.");
+      // 실패 시 원래 상태로 복원
+      setLocalChecklists(template.checklistTemplates || []);
+    }
+  };
 
   // 체크리스트 추가
   const handleAddChecklist = async () => {
@@ -1062,66 +1111,33 @@ function SortableChildTemplate({
           {checklists.length === 0 ? (
             <p className="text-xs text-muted-foreground py-1">체크리스트 없음</p>
           ) : (
-            checklists.map((cl) => (
-              <div
-                key={cl.id}
-                className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50 group"
+            <DndContext
+              sensors={checklistSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleChecklistDragEnd}
+            >
+              <SortableContext
+                items={checklists.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
               >
-                {editingChecklistId === cl.id ? (
-                  <>
-                    <Input
-                      value={editingChecklistName}
-                      onChange={(e) => setEditingChecklistName(e.target.value)}
-                      className="h-6 text-xs flex-1"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleEditChecklist(cl.id);
-                        if (e.key === "Escape") setEditingChecklistId(null);
-                      }}
-                      autoFocus
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => handleEditChecklist(cl.id)}
-                    >
-                      <Check className="h-3 w-3 text-green-600" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => setEditingChecklistId(null)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-xs flex-1">{cl.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                      onClick={() => {
-                        setEditingChecklistId(cl.id);
-                        setEditingChecklistName(cl.name);
-                      }}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
-                      onClick={() => handleDeleteChecklist(cl.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            ))
+                {checklists.map((cl) => (
+                  <SortableChecklistTemplateItem
+                    key={cl.id}
+                    checklist={cl}
+                    isEditing={editingChecklistId === cl.id}
+                    editingName={editingChecklistName}
+                    onEditingNameChange={setEditingChecklistName}
+                    onStartEdit={() => {
+                      setEditingChecklistId(cl.id);
+                      setEditingChecklistName(cl.name);
+                    }}
+                    onSaveEdit={() => handleEditChecklist(cl.id)}
+                    onCancelEdit={() => setEditingChecklistId(null)}
+                    onDelete={() => handleDeleteChecklist(cl.id)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
 
           {/* 새 체크리스트 추가 */}
@@ -1151,6 +1167,125 @@ function SortableChildTemplate({
             </Button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// 체크리스트 템플릿 Sortable 컴포넌트
+interface SortableChecklistTemplateItemProps {
+  checklist: ChecklistTemplate;
+  isEditing: boolean;
+  editingName: string;
+  onEditingNameChange: (name: string) => void;
+  onStartEdit: () => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onDelete: () => void;
+}
+
+function SortableChecklistTemplateItem({
+  checklist,
+  isEditing,
+  editingName,
+  onEditingNameChange,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onDelete,
+}: SortableChecklistTemplateItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: checklist.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  // 이벤트 전파 방지 헬퍼
+  const stopPropagation = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50 group bg-background",
+        isDragging && "opacity-50 shadow-md z-50"
+      )}
+    >
+      {/* 드래그 핸들 */}
+      <div
+        className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-3 w-3" />
+      </div>
+
+      {isEditing ? (
+        <>
+          <Input
+            value={editingName}
+            onChange={(e) => onEditingNameChange(e.target.value)}
+            className="h-6 text-xs flex-1"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSaveEdit();
+              if (e.key === "Escape") onCancelEdit();
+            }}
+            onPointerDown={stopPropagation}
+            onMouseDown={stopPropagation}
+            autoFocus
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
+            onClick={onSaveEdit}
+            onPointerDown={stopPropagation}
+          >
+            <Check className="h-3 w-3 text-green-600" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
+            onClick={onCancelEdit}
+            onPointerDown={stopPropagation}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="text-xs flex-1">{checklist.name}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 opacity-0 group-hover:opacity-100"
+            onClick={onStartEdit}
+            onPointerDown={stopPropagation}
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
+            onClick={onDelete}
+            onPointerDown={stopPropagation}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </>
       )}
     </div>
   );

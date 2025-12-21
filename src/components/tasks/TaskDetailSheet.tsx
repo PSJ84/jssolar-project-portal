@@ -174,6 +174,11 @@ function SortableChecklistItem({
 
   const statusConfig = CHECKLIST_STATUS_CONFIG[item.status];
 
+  // 이벤트 전파 방지 헬퍼
+  const stopPropagation = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -186,43 +191,46 @@ function SortableChecklistItem({
     >
       {/* 드래그 핸들 (Admin만) */}
       {isAdmin && (
-        <button
-          type="button"
+        <div
           className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
           {...attributes}
           {...listeners}
         >
           <GripVertical className="h-4 w-4" />
-        </button>
+        </div>
       )}
 
-      {/* 상태 드롭다운 */}
-      <div onPointerDown={(e) => e.stopPropagation()}>
+      {/* 상태 드롭다운 - DnD 이벤트 완전 분리 */}
+      <div
+        onPointerDown={stopPropagation}
+        onMouseDown={stopPropagation}
+        onTouchStart={stopPropagation}
+        onClick={stopPropagation}
+      >
         <Select
           value={item.status}
           onValueChange={(value) => {
-            if (isAdmin) {
-              onStatusChange(item, value as ChecklistStatus);
-            }
+            onStatusChange(item, value as ChecklistStatus);
           }}
           disabled={!isAdmin}
         >
           <SelectTrigger className="w-[120px] h-8">
-          <Badge
-            variant="outline"
-            className={cn(
-              "flex items-center gap-1 font-normal",
-              statusConfig.color
-            )}
-          >
-            {statusConfig.icon}
-            {statusConfig.label}
-          </Badge>
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(CHECKLIST_STATUS_CONFIG).map(([status, config]) => (
-            <SelectItem key={status} value={status}>
-              <div className="flex items-center gap-2">
+            <SelectValue>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "flex items-center gap-1 font-normal",
+                  statusConfig.color
+                )}
+              >
+                {statusConfig.icon}
+                {statusConfig.label}
+              </Badge>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent position="popper" sideOffset={4}>
+            {Object.entries(CHECKLIST_STATUS_CONFIG).map(([status, config]) => (
+              <SelectItem key={status} value={status}>
                 <Badge
                   variant="outline"
                   className={cn(
@@ -233,10 +241,9 @@ function SortableChecklistItem({
                   {config.icon}
                   {config.label}
                 </Badge>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 
@@ -257,7 +264,8 @@ function SortableChecklistItem({
           size="icon"
           className="h-7 w-7 text-destructive hover:text-destructive"
           onClick={() => onDelete(item.id)}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={stopPropagation}
+          onMouseDown={stopPropagation}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
