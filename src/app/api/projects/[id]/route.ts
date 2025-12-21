@@ -5,7 +5,7 @@ import { UserRole } from "@prisma/client";
 
 // Helper function to check project access
 async function checkProjectAccess(projectId: string, userId: string, role: UserRole) {
-  if (role === UserRole.ADMIN) {
+  if (role === UserRole.SUPER_ADMIN || role === UserRole.ADMIN) {
     return true;
   }
 
@@ -119,7 +119,7 @@ export async function PATCH(
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (![UserRole.SUPER_ADMIN, UserRole.ADMIN].includes(session.user.role)) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
         { status: 403 }
@@ -262,7 +262,7 @@ export async function DELETE(
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (![UserRole.SUPER_ADMIN, UserRole.ADMIN].includes(session.user.role)) {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
         { status: 403 }
