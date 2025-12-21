@@ -61,6 +61,7 @@ interface TaskListV2Props {
   tasks: TaskWithChildren[];
   isAdmin?: boolean;
   isClient?: boolean;
+  hideProgressSummary?: boolean;
 }
 
 // D-day 계산
@@ -195,7 +196,7 @@ function formatSubmittedInfo(submittedDate: string, dueDate: string | null): str
   return `접수: ${submittedStr}`;
 }
 
-export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false }: TaskListV2Props) {
+export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false, hideProgressSummary = false }: TaskListV2Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -552,8 +553,8 @@ export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false
   if (isClient) {
     return (
       <>
-        {/* 상단 요약 */}
-        <ClientProgressSummary tasks={localTasks} />
+        {/* 상단 요약 (hideProgressSummary가 false일 때만 표시) */}
+        {!hideProgressSummary && <ClientProgressSummary tasks={localTasks} />}
 
         {/* 전체 단계 목록 (접기/펼치기) */}
         <Card>

@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { prisma } from "@/lib/prisma";
 import { ProjectStatus, DocumentCategory, ChecklistStatus } from "@prisma/client";
 import {
@@ -17,11 +16,9 @@ import {
   ArrowLeft,
   FolderOpen,
   RefreshCw,
-  CheckCircle2,
-  Clock,
-  ListTodo
 } from "lucide-react";
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
+import { ClientProgressSummary } from "@/components/tasks/ClientProgressSummary";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -243,66 +240,31 @@ export default async function ClientProjectDetailPage({
         </div>
       </div>
 
-      {/* 요약 바 - 컴팩트한 한 줄 */}
-      {(() => {
-        // 태스크 통계 계산
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const activeTasks = project.tasks.filter(t => t.isActive);
-        const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
-        const totalTasks = allChildTasks.length;
-        const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
-
-        // 진행중: startDate가 오늘 이하이고 미완료
-        const inProgressTasks = allChildTasks.filter(c => {
-          if (c.completedDate) return false;
-          if (!c.startDate) return false;
-          const start = new Date(c.startDate);
-          start.setHours(0, 0, 0, 0);
-          return start <= today;
-        }).length;
-
-        // 대기: startDate 없거나 미래
-        const waitingTasks = allChildTasks.filter(c => {
-          if (c.completedDate) return false;
-          if (!c.startDate) return true;
-          const start = new Date(c.startDate);
-          start.setHours(0, 0, 0, 0);
-          return start > today;
-        }).length;
-
-        const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-        return (
-          <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/30 rounded-lg border">
-            {/* 진행률 */}
-            <div className="flex items-center gap-2 min-w-[120px]">
-              <Progress value={progressPercent} className="h-2 w-16" />
-              <span className="text-sm font-medium">{progressPercent}%</span>
-              <span className="text-xs text-muted-foreground">({completedTasks}/{totalTasks})</span>
-            </div>
-
-            <span className="text-muted-foreground">·</span>
-
-            {/* 상태별 카운트 */}
-            <div className="flex items-center gap-3 text-sm">
-              <span className="flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                완료 {completedTasks}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5 text-yellow-500" />
-                진행 {inProgressTasks}
-              </span>
-              <span className="flex items-center gap-1">
-                <ListTodo className="h-3.5 w-3.5 text-gray-400" />
-                대기 {waitingTasks}
-              </span>
-            </div>
-          </div>
-        );
-      })()}
+      {/* 진행률 요약 - 항상 표시 */}
+      <ClientProgressSummary
+        tasks={project.tasks.map((task) => ({
+          id: task.id,
+          name: task.name,
+          sortOrder: task.sortOrder,
+          isActive: task.isActive,
+          startDate: task.startDate?.toISOString() ?? null,
+          dueDate: task.dueDate?.toISOString() ?? null,
+          completedDate: task.completedDate?.toISOString() ?? null,
+          isPermitTask: task.isPermitTask,
+          submittedDate: task.submittedDate?.toISOString() ?? null,
+          processingDays: task.processingDays,
+          children: task.children.map((child) => ({
+            id: child.id,
+            name: child.name,
+            sortOrder: child.sortOrder,
+            isActive: child.isActive,
+            startDate: child.startDate?.toISOString() ?? null,
+            dueDate: child.dueDate?.toISOString() ?? null,
+            completedDate: child.completedDate?.toISOString() ?? null,
+            children: [],
+          })),
+        }))}
+      />
 
       {/* Tabs - 진행 단계가 첫 번째 탭 (기본 선택) */}
       <Tabs defaultValue="tasks" className="space-y-4">
@@ -354,6 +316,7 @@ export default async function ClientProjectDetailPage({
             })}
             isAdmin={false}
             isClient={true}
+            hideProgressSummary={true}
           />
         </TabsContent>
 
