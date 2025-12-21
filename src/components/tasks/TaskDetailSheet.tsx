@@ -34,9 +34,27 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
+  GripVertical,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // 체크리스트 상태 정의
 type ChecklistStatus =
@@ -126,6 +144,122 @@ interface TaskDetailSheetProps {
   hasTaskDetailFeature: boolean;
 }
 
+// Sortable Checklist Item Component
+interface SortableChecklistItemProps {
+  item: ChecklistItem;
+  isAdmin: boolean;
+  onStatusChange: (item: ChecklistItem, newStatus: ChecklistStatus) => void;
+  onDelete: (checklistId: string) => void;
+}
+
+function SortableChecklistItem({
+  item,
+  isAdmin,
+  onStatusChange,
+  onDelete,
+}: SortableChecklistItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const statusConfig = CHECKLIST_STATUS_CONFIG[item.status];
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 p-2 rounded-md border bg-background",
+        item.status === "COMPLETED" && "bg-muted/50",
+        isDragging && "opacity-50 shadow-lg z-50"
+      )}
+    >
+      {/* 드래그 핸들 (Admin만) */}
+      {isAdmin && (
+        <button
+          className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
+
+      {/* 상태 드롭다운 */}
+      <Select
+        value={item.status}
+        onValueChange={(value) =>
+          isAdmin && onStatusChange(item, value as ChecklistStatus)
+        }
+        disabled={!isAdmin}
+      >
+        <SelectTrigger className="w-[120px] h-8">
+          <Badge
+            variant="outline"
+            className={cn(
+              "flex items-center gap-1 font-normal",
+              statusConfig.color
+            )}
+          >
+            {statusConfig.icon}
+            {statusConfig.label}
+          </Badge>
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(CHECKLIST_STATUS_CONFIG).map(([status, config]) => (
+            <SelectItem key={status} value={status}>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "flex items-center gap-1 font-normal",
+                    config.color
+                  )}
+                >
+                  {config.icon}
+                  {config.label}
+                </Badge>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* 내용 */}
+      <span
+        className={cn(
+          "flex-1 text-sm",
+          item.status === "COMPLETED" && "line-through text-muted-foreground"
+        )}
+      >
+        {item.content}
+      </span>
+
+      {/* 삭제 버튼 */}
+      {isAdmin && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-destructive hover:text-destructive"
+          onClick={() => onDelete(item.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function TaskDetailSheet({
   projectId,
   taskId,
@@ -152,6 +286,18 @@ export function TaskDetailSheet({
   // 인허가 상태
   const [submittedDate, setSubmittedDate] = useState<Date | undefined>();
   const [processingDays, setProcessingDays] = useState<number | null>(null);
+
+  // DnD Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Fetch task detail
   const fetchTask = useCallback(async () => {
@@ -382,6 +528,46 @@ export function TaskDetailSheet({
     }
   };
 
+  // Handle drag end for checklist reorder
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id || !task) return;
+
+    const oldIndex = task.checklists.findIndex((c) => c.id === active.id);
+    const newIndex = task.checklists.findIndex((c) => c.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // 로컬 상태 먼저 업데이트 (낙관적 업데이트)
+    const reorderedChecklists = arrayMove(task.checklists, oldIndex, newIndex);
+    setTask((prev) =>
+      prev ? { ...prev, checklists: reorderedChecklists } : prev
+    );
+
+    // API 호출
+    try {
+      const orderedIds = reorderedChecklists.map((c) => c.id);
+      const res = await fetch(
+        `/api/projects/${projectId}/tasks-v2/${taskId}/checklists/reorder`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderedIds }),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to reorder");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("순서 변경에 실패했습니다.");
+      // 실패 시 원래 상태로 복원
+      fetchTask();
+    }
+  };
+
   // 완료된 체크리스트 개수 계산
   const completedCount = task?.checklists.filter(
     (c) => c.status === "COMPLETED"
@@ -597,85 +783,28 @@ export function TaskDetailSheet({
                 </div>
               ) : (
                 <>
-                  <div className="space-y-2">
-                    {task.checklists.map((item) => {
-                      const statusConfig = CHECKLIST_STATUS_CONFIG[item.status];
-                      return (
-                        <div
-                          key={item.id}
-                          className={cn(
-                            "flex items-center gap-2 p-2 rounded-md border",
-                            item.status === "COMPLETED" && "bg-muted/50"
-                          )}
-                        >
-                          {/* 상태 드롭다운 */}
-                          <Select
-                            value={item.status}
-                            onValueChange={(value) =>
-                              isAdmin && handleStatusChange(item, value as ChecklistStatus)
-                            }
-                            disabled={!isAdmin}
-                          >
-                            <SelectTrigger className="w-[120px] h-8">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "flex items-center gap-1 font-normal",
-                                  statusConfig.color
-                                )}
-                              >
-                                {statusConfig.icon}
-                                {statusConfig.label}
-                              </Badge>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(CHECKLIST_STATUS_CONFIG).map(
-                                ([status, config]) => (
-                                  <SelectItem key={status} value={status}>
-                                    <div className="flex items-center gap-2">
-                                      <Badge
-                                        variant="outline"
-                                        className={cn(
-                                          "flex items-center gap-1 font-normal",
-                                          config.color
-                                        )}
-                                      >
-                                        {config.icon}
-                                        {config.label}
-                                      </Badge>
-                                    </div>
-                                  </SelectItem>
-                                )
-                              )}
-                            </SelectContent>
-                          </Select>
-
-                          {/* 내용 */}
-                          <span
-                            className={cn(
-                              "flex-1 text-sm",
-                              item.status === "COMPLETED" &&
-                                "line-through text-muted-foreground"
-                            )}
-                          >
-                            {item.content}
-                          </span>
-
-                          {/* 삭제 버튼 */}
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteChecklist(item.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={task.checklists.map((c) => c.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-2">
+                        {task.checklists.map((item) => (
+                          <SortableChecklistItem
+                            key={item.id}
+                            item={item}
+                            isAdmin={isAdmin}
+                            onStatusChange={handleStatusChange}
+                            onDelete={handleDeleteChecklist}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
 
                   {isAdmin && (
                     <div className="flex gap-2">
