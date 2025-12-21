@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { DashboardTaskList } from "@/components/dashboard/DashboardTaskList";
+import { DashboardContent } from "@/components/dashboard/DashboardContent";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
@@ -15,13 +15,10 @@ export default async function AdminDashboardPage() {
     redirect("/");
   }
 
-  // 조직의 모든 프로젝트에서 기한 있는 미완료 태스크 조회
-  const tasks = await prisma.task.findMany({
+  // 1. 기한 있는 미완료 태스크 (기존)
+  const alertTasks = await prisma.task.findMany({
     where: {
-      project: {
-        organizationId: organizationId,
-        status: "ACTIVE",
-      },
+      project: { organizationId, status: "ACTIVE" },
       isActive: true,
       completedDate: null,
       dueDate: { not: null },
@@ -37,8 +34,70 @@ export default async function AdminDashboardPage() {
     orderBy: { dueDate: "asc" },
   });
 
+  // 2. 프로젝트 목록 + 진행률
+  const projects = await prisma.project.findMany({
+    where: { organizationId, status: "ACTIVE" },
+    select: {
+      id: true,
+      name: true,
+      tasks: {
+        where: { parentId: null, isActive: true },
+        select: { completedDate: true },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const projectsWithProgress = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    total: p.tasks.length,
+    completed: p.tasks.filter((t) => t.completedDate).length,
+    percent:
+      p.tasks.length > 0
+        ? Math.round(
+            (p.tasks.filter((t) => t.completedDate).length / p.tasks.length) *
+              100
+          )
+        : 0,
+  }));
+
+  // 3. KPI 데이터
+  const totalProjects = projects.length;
+  const inProgressProjects = projects.filter((p) => {
+    const completed = p.tasks.filter((t) => t.completedDate).length;
+    return completed > 0 && completed < p.tasks.length;
+  }).length;
+
+  // 이번 주 완료된 태스크 수
+  const startOfWeek = new Date();
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const completedThisWeek = await prisma.task.count({
+    where: {
+      project: { organizationId, status: "ACTIVE" },
+      isActive: true,
+      completedDate: { gte: startOfWeek },
+    },
+  });
+
+  // 기한 초과 태스크 수
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const overdueCount = alertTasks.filter(
+    (t) => new Date(t.dueDate!) < today
+  ).length;
+
+  const kpiData = {
+    totalProjects,
+    inProgressProjects,
+    overdueCount,
+    completedThisWeek,
+  };
+
   // 날짜를 문자열로 변환
-  const formattedTasks = tasks.map((task) => ({
+  const formattedTasks = alertTasks.map((task) => ({
     id: task.id,
     name: task.name,
     dueDate: task.dueDate!.toISOString(),
@@ -48,12 +107,12 @@ export default async function AdminDashboardPage() {
   }));
 
   return (
-    <div className="container py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">내일 뭐하지?</h1>
-      </div>
-
-      <DashboardTaskList tasks={formattedTasks} currentUserId={session.user.id} />
-    </div>
+    <DashboardContent
+      userName={session.user.name || "관리자"}
+      currentUserId={session.user.id}
+      alertTasks={formattedTasks}
+      projectsWithProgress={projectsWithProgress}
+      kpiData={kpiData}
+    />
   );
 }

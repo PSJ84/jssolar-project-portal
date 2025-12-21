@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Circle,
+  Clock,
   FolderKanban,
   Loader2,
 } from "lucide-react";
@@ -213,7 +214,7 @@ export function DashboardTaskList({
           <div className="space-y-6">
             {/* 기한 초과 */}
             {overdueTasks.length > 0 && (
-              <Card className="border-red-200 bg-red-50/50">
+              <Card className="border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2 text-red-700">
                     <AlertTriangle className="h-5 w-5" />
@@ -236,10 +237,10 @@ export function DashboardTaskList({
 
             {/* 이번 주 마감 */}
             {thisWeekTasks.length > 0 && (
-              <Card className="border-yellow-200 bg-yellow-50/50">
+              <Card className="border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50/50 shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
-                    <AlertTriangle className="h-5 w-5" />
+                    <Clock className="h-5 w-5" />
                     이번 주 마감 ({thisWeekTasks.length})
                   </CardTitle>
                 </CardHeader>
