@@ -7,6 +7,9 @@ async function getMyProjects(userId: string) {
   try {
     const projects = await prisma.project.findMany({
       where: {
+        status: {
+          not: "ARCHIVED",
+        },
         members: {
           some: {
             userId: userId,

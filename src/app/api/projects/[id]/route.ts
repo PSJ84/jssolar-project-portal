@@ -287,7 +287,15 @@ export async function DELETE(
     }
 
     if (hardDelete) {
-      // 하드 삭제: 실제로 데이터베이스에서 삭제
+      // 하드 삭제: SUPER_ADMIN만 가능
+      if (role !== "SUPER_ADMIN") {
+        return NextResponse.json(
+          { error: "Forbidden: Only SUPER_ADMIN can permanently delete projects" },
+          { status: 403 }
+        );
+      }
+
+      // 실제로 데이터베이스에서 삭제
       await prisma.project.delete({
         where: { id: projectId },
       });

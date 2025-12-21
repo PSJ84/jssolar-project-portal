@@ -27,6 +27,7 @@ import {
 
 const superAdminNavigation = [
   { name: "조직 관리", href: "/super/organizations", icon: Building2 },
+  { name: "전체 프로젝트", href: "/super/projects", icon: FolderKanban },
   { name: "템플릿 관리", href: "/super/templates", icon: ListTodo },
 ];
 
