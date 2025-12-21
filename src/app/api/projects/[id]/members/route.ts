@@ -82,9 +82,9 @@ export async function POST(
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.SUPER_ADMIN) {
       return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
+        { error: "Forbidden: ADMIN role required", message: "ADMIN 권한이 필요합니다" },
         { status: 403 }
       );
     }
@@ -95,7 +95,7 @@ export async function POST(
 
     if (!email && !userId) {
       return NextResponse.json(
-        { error: "Email or userId is required" },
+        { error: "Email or userId is required", message: "이메일 또는 사용자 ID가 필요합니다" },
         { status: 400 }
       );
     }
@@ -108,7 +108,7 @@ export async function POST(
 
     if (!project) {
       return NextResponse.json(
-        { error: "Project not found" },
+        { error: "Project not found", message: "프로젝트를 찾을 수 없습니다" },
         { status: 404 }
       );
     }
@@ -122,7 +122,7 @@ export async function POST(
       });
       if (!existingUser) {
         return NextResponse.json(
-          { error: "User not found" },
+          { error: "User not found", message: "사용자를 찾을 수 없습니다" },
           { status: 404 }
         );
       }
@@ -131,7 +131,7 @@ export async function POST(
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return NextResponse.json(
-          { error: "Invalid email format" },
+          { error: "Invalid email format", message: "이메일 형식이 올바르지 않습니다" },
           { status: 400 }
         );
       }
@@ -153,7 +153,7 @@ export async function POST(
 
       if (existingMember) {
         return NextResponse.json(
-          { error: "User is already a member of this project" },
+          { error: "User is already a member of this project", message: "이미 프로젝트 멤버입니다" },
           { status: 409 }
         );
       }
@@ -168,7 +168,7 @@ export async function POST(
 
       if (existingInvite) {
         return NextResponse.json(
-          { error: "User is already invited to this project" },
+          { error: "User is already invited to this project", message: "이미 초대된 사용자입니다" },
           { status: 409 }
         );
       }
@@ -220,7 +220,7 @@ export async function POST(
   } catch (error) {
     console.error("Error adding project member:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", message: "멤버 추가 중 오류가 발생했습니다" },
       { status: 500 }
     );
   }
@@ -241,9 +241,9 @@ export async function DELETE(
       );
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.SUPER_ADMIN) {
       return NextResponse.json(
-        { error: "Forbidden: ADMIN role required" },
+        { error: "Forbidden: ADMIN role required", message: "ADMIN 권한이 필요합니다" },
         { status: 403 }
       );
     }

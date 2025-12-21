@@ -9,8 +9,8 @@ import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
 import { DocumentManagement } from "@/components/project/document-management";
-import { TaskManagement } from "@/components/project/task-management";
 import { ProjectOverviewEdit } from "@/components/project/project-overview-edit";
+import { TaskListV2 } from "@/components/tasks/TaskListV2";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -76,8 +76,26 @@ export default async function AdminProjectDetailPage({
         orderBy: { createdAt: "desc" },
         take: 20,
       },
-      tasks: {
+      projectTasks: {
         orderBy: { displayOrder: "asc" },
+      },
+      // Phase 2 Task
+      tasks: {
+        where: { parentId: null },
+        include: {
+          children: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              checklists: {
+                select: { isChecked: true },
+              },
+            },
+          },
+          checklists: {
+            select: { isChecked: true },
+          },
+        },
+        orderBy: { sortOrder: "asc" },
       },
     },
   });
@@ -137,19 +155,47 @@ export default async function AdminProjectDetailPage({
         </div>
       </div>
 
-      {/* Task Management - Checklist */}
-      <TaskManagement
+      {/* Phase 2 Task List */}
+      <TaskListV2
         projectId={project.id}
-        tasks={project.tasks.map((task) => ({
-          id: task.id,
-          taskType: task.taskType,
-          customName: task.customName,
-          status: task.status,
-          displayOrder: task.displayOrder,
-          note: task.note,
-          completedAt: task.completedAt?.toISOString() ?? null,
-        }))}
+        tasks={project.tasks.map((task) => {
+          const getChecklistCount = (checklists: { isChecked: boolean }[]) => ({
+            total: checklists.length,
+            checked: checklists.filter((c) => c.isChecked).length,
+          });
+          return {
+            id: task.id,
+            name: task.name,
+            sortOrder: task.sortOrder,
+            isActive: task.isActive,
+            startDate: task.startDate?.toISOString() ?? null,
+            dueDate: task.dueDate?.toISOString() ?? null,
+            completedDate: task.completedDate?.toISOString() ?? null,
+            version: task.version,
+            originTemplateTaskId: task.originTemplateTaskId,
+            checklistCount: getChecklistCount(task.checklists),
+            isPermitTask: task.isPermitTask,
+            processingDays: task.processingDays,
+            submittedDate: task.submittedDate?.toISOString() ?? null,
+            children: task.children.map((child) => ({
+              id: child.id,
+              name: child.name,
+              sortOrder: child.sortOrder,
+              isActive: child.isActive,
+              startDate: child.startDate?.toISOString() ?? null,
+              dueDate: child.dueDate?.toISOString() ?? null,
+              completedDate: child.completedDate?.toISOString() ?? null,
+              version: child.version,
+              originTemplateTaskId: child.originTemplateTaskId,
+              checklistCount: getChecklistCount(child.checklists),
+              children: [],
+            })),
+          };
+        })}
+        isAdmin={true}
       />
+
+
 
       {/* Status Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">

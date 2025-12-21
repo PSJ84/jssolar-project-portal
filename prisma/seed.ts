@@ -402,6 +402,86 @@ async function main() {
     console.log('Sample tasks already exist');
   }
 
+  // ==================== Task Templates ====================
+  const existingTemplate = await prisma.taskTemplate.findFirst({
+    where: { isSystem: true, parentId: null },
+  });
+
+  if (!existingTemplate) {
+    // 시스템 기본 템플릿 생성
+    const templates = [
+      { name: '도급계약', sortOrder: 0, isPermitTask: false, processingDays: null },
+      { name: '발전사업허가', sortOrder: 1, isPermitTask: true, processingDays: 14 },
+      { name: '개발행위허가', sortOrder: 2, isPermitTask: true, processingDays: 14 },
+      { name: 'PPA신청', sortOrder: 3, isPermitTask: true, processingDays: 7 },
+      { name: '공사계획신고', sortOrder: 4, isPermitTask: true, processingDays: 14 },
+      { name: '구조물공사', sortOrder: 5, isPermitTask: false, processingDays: null },
+      { name: '전기공사', sortOrder: 6, isPermitTask: false, processingDays: null },
+      { name: '사용전검사', sortOrder: 7, isPermitTask: true, processingDays: 7 },
+      { name: '개발행위준공', sortOrder: 8, isPermitTask: true, processingDays: 7 },
+      { name: 'PPA계약', sortOrder: 9, isPermitTask: false, processingDays: null },
+      { name: '사업개시신고', sortOrder: 10, isPermitTask: true, processingDays: 7 },
+      { name: '설비확인등록', sortOrder: 11, isPermitTask: true, processingDays: 14 },
+    ];
+
+    for (const template of templates) {
+      const mainTask = await prisma.taskTemplate.create({
+        data: {
+          name: template.name,
+          sortOrder: template.sortOrder,
+          isSystem: true,
+          isPermitTask: template.isPermitTask,
+          processingDays: template.processingDays,
+        },
+      });
+
+      // 인허가 단계면 기본 하위 태스크 추가
+      if (template.isPermitTask) {
+        await prisma.taskTemplate.createMany({
+          data: [
+            { name: '서류 준비', sortOrder: 0, parentId: mainTask.id, isSystem: true },
+            { name: '신청/접수', sortOrder: 1, parentId: mainTask.id, isSystem: true },
+            { name: '보완 대응', sortOrder: 2, parentId: mainTask.id, isSystem: true },
+          ],
+        });
+      }
+    }
+    console.log('Task templates created');
+  } else {
+    console.log('Task templates already exist');
+  }
+
+  // ==================== Update existing Tasks with permit flags ====================
+  const permitTaskNames = [
+    '발전사업허가', '개발행위허가', 'PPA신청', '공사계획신고',
+    '사용전검사', '개발행위준공', '사업개시신고', '설비확인등록'
+  ];
+
+  const processingDaysMap: Record<string, number> = {
+    '발전사업허가': 14,
+    '개발행위허가': 14,
+    'PPA신청': 7,
+    '공사계획신고': 14,
+    '사용전검사': 7,
+    '개발행위준공': 7,
+    '사업개시신고': 7,
+    '설비확인등록': 14,
+  };
+
+  // 기존 태스크 업데이트
+  for (const name of permitTaskNames) {
+    const result = await prisma.task.updateMany({
+      where: { name, isPermitTask: false },
+      data: {
+        isPermitTask: true,
+        processingDays: processingDaysMap[name] || 14,
+      },
+    });
+    if (result.count > 0) {
+      console.log(`Updated ${result.count} tasks with name "${name}" to permit task`);
+    }
+  }
+
   console.log('Seed completed successfully!');
 }
 

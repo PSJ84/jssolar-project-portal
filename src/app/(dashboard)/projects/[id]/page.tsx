@@ -17,7 +17,7 @@ import {
   FolderOpen,
   RefreshCw
 } from "lucide-react";
-import { TaskList } from "@/components/project/task-list";
+import { TaskListV2 } from "@/components/tasks/TaskListV2";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -90,10 +90,28 @@ async function getProject(id: string, userId: string) {
           },
           take: 20,
         },
-        tasks: {
+        projectTasks: {
           orderBy: {
             displayOrder: "asc",
           },
+        },
+        // Phase 2 Task
+        tasks: {
+          where: { parentId: null },
+          include: {
+            children: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                checklists: {
+                  select: { isChecked: true },
+                },
+              },
+            },
+            checklists: {
+              select: { isChecked: true },
+            },
+          },
+          orderBy: { sortOrder: "asc" },
         },
       },
     });
@@ -221,18 +239,48 @@ export default async function ClientProjectDetailPage({
         </div>
       </div>
 
-      {/* Task List - Read-only Checklist */}
-      <TaskList
-        tasks={project.tasks.map((task) => ({
-          id: task.id,
-          taskType: task.taskType,
-          customName: task.customName,
-          status: task.status,
-          displayOrder: task.displayOrder,
-          note: task.note,
-          completedAt: task.completedAt?.toISOString() ?? null,
-        }))}
+      {/* Phase 2 Task List - CLIENT 간소화 뷰 */}
+      <TaskListV2
+        projectId={project.id}
+        tasks={project.tasks.map((task) => {
+          const getChecklistCount = (checklists: { isChecked: boolean }[]) => ({
+            total: checklists.length,
+            checked: checklists.filter((c) => c.isChecked).length,
+          });
+          return {
+            id: task.id,
+            name: task.name,
+            sortOrder: task.sortOrder,
+            isActive: task.isActive,
+            startDate: task.startDate?.toISOString() ?? null,
+            dueDate: task.dueDate?.toISOString() ?? null,
+            completedDate: task.completedDate?.toISOString() ?? null,
+            version: task.version,
+            originTemplateTaskId: task.originTemplateTaskId,
+            checklistCount: getChecklistCount(task.checklists),
+            isPermitTask: task.isPermitTask,
+            processingDays: task.processingDays,
+            submittedDate: task.submittedDate?.toISOString() ?? null,
+            children: task.children.map((child) => ({
+              id: child.id,
+              name: child.name,
+              sortOrder: child.sortOrder,
+              isActive: child.isActive,
+              startDate: child.startDate?.toISOString() ?? null,
+              dueDate: child.dueDate?.toISOString() ?? null,
+              completedDate: child.completedDate?.toISOString() ?? null,
+              version: child.version,
+              originTemplateTaskId: child.originTemplateTaskId,
+              checklistCount: getChecklistCount(child.checklists),
+              children: [],
+            })),
+          };
+        })}
+        isAdmin={false}
+        isClient={true}
       />
+
+
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">

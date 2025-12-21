@@ -13,16 +13,21 @@ import {
   LogOut,
   Sun,
   Building2,
+  ListTodo,
+  LayoutDashboard,
 } from "lucide-react";
 
 const navigation = [
+  { name: "대시보드", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "프로젝트 관리", href: "/admin/projects", icon: FolderKanban },
   { name: "사용자 관리", href: "/admin/users", icon: Users },
+  { name: "템플릿 관리", href: "/admin/templates", icon: ListTodo },
   { name: "설정", href: "/admin/settings", icon: Settings },
 ];
 
 const superAdminNavigation = [
   { name: "조직 관리", href: "/super/organizations", icon: Building2 },
+  { name: "템플릿 관리", href: "/super/templates", icon: ListTodo },
 ];
 
 interface AdminSidebarProps {

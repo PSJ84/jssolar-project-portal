@@ -16,9 +16,13 @@ model Organization {
   plan           Plan @default(BASIC)
   sessionMaxDays Int  @default(60)
 
-  users    User[]
-  projects Project[]
-  features OrganizationFeature[]
+  // 조직 기본 템플릿 (없으면 시스템 기본 사용)
+  defaultTemplateId String?
+
+  users         User[]
+  projects      Project[]
+  features      OrganizationFeature[]
+  taskTemplates TaskTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,6 +55,8 @@ model User {
   projectMemberships ProjectMember[]
   uploadedDocuments  DocumentVersion[]
   activities         Activity[]
+  assignedTasks      Task[]            @relation("TaskAssignee")
+  checkedChecklists  Checklist[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 }
@@ -121,12 +127,13 @@ model Project {
 
   notes String? @db.Text // 기타 메모/비고
 
-  members    ProjectMember[]
-  documents  Document[]
-  activities Activity[]
-  tasks      ProjectTask[]
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  members      ProjectMember[]
+  documents    Document[]
+  activities   Activity[]
+  projectTasks ProjectTask[]  // 레거시 (기존 프로젝트용)
+  tasks        Task[]         // Phase 2 새 태스크 시스템
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 // Project task checklist
@@ -286,4 +293,115 @@ enum DocumentCategory {
   SITE_PHOTO // 현장 사진
   COMPLETION // 준공 서류
   OTHER // 기타
+}
+
+// ==================== Phase 2: 태스크 템플릿 ====================
+
+model TaskTemplate {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+
+  // 시스템 기본 or 조직별
+  isSystem       Boolean       @default(false)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // 계층 구조 (메인 태스크 → 하위 태스크)
+  parentId String?
+  parent   TaskTemplate?  @relation("TemplateHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children TaskTemplate[] @relation("TemplateHierarchy")
+
+  checklistTemplates  ChecklistTemplate[]
+  defaultAlertEnabled Boolean             @default(true)
+
+  // 인허가 단계 설정
+  isPermitTask   Boolean @default(false) // 인허가 여부
+  processingDays Int?                     // 처리기한 (일)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isSystem, parentId, sortOrder])
+  @@index([organizationId, parentId, sortOrder])
+}
+
+model ChecklistTemplate {
+  id             String       @id @default(cuid())
+  taskTemplateId String
+  taskTemplate   TaskTemplate @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
+  name           String
+  sortOrder      Int          @default(0)
+
+  @@index([taskTemplateId, sortOrder])
+}
+
+// ==================== Phase 2: 실제 태스크 ====================
+
+model Task {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 계층 구조 (메인 태스크 → 하위 태스크)
+  parentId String?
+  parent   Task?  @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Task[] @relation("TaskHierarchy")
+
+  // 원본 템플릿 추적
+  originTemplateTaskId String?
+
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+
+  // 날짜 관리
+  startDate     DateTime?
+  dueDate       DateTime? // 인허가: 완료예정일 (접수일 + 처리기한)
+  completedDate DateTime?
+
+  // 인허가 단계 설정
+  isPermitTask   Boolean   @default(false) // 인허가 여부
+  processingDays Int?                       // 처리기한 (일)
+  submittedDate  DateTime?                  // 접수일
+
+  // 옵션
+  alertEnabled Boolean @default(true)
+  assigneeId   String?
+  assignee     User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  memo         String? @db.Text
+  isActive     Boolean @default(true) // 숨김/보임 토글
+
+  // 낙관적 동시성 제어
+  version Int @default(1)
+
+  checklists Checklist[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([id, projectId])
+  @@index([projectId, parentId, sortOrder])
+  @@index([assigneeId, completedDate, dueDate])
+  @@index([projectId, dueDate])
+}
+
+model Checklist {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  name      String
+  isChecked Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  checkedAt   DateTime?
+  checkedById String?
+  checkedBy   User?     @relation(fields: [checkedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId, sortOrder])
 }
