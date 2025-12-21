@@ -382,6 +382,105 @@ export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false
     [isAdmin, projectId]
   );
 
+  // completedDate 빠른 토글 (완료/취소)
+  const toggleComplete = useCallback(
+    async (task: TaskWithChildren) => {
+      if (!isAdmin) return;
+
+      setTogglingIds((prev) => new Set(prev).add(task.id));
+
+      // 현재 완료 상태의 반대로 설정
+      const newCompletedDate = task.completedDate ? null : new Date().toISOString();
+
+      // 낙관적 업데이트
+      setLocalTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === task.id) {
+            return { ...t, completedDate: newCompletedDate };
+          }
+          if (t.children.some((c) => c.id === task.id)) {
+            return {
+              ...t,
+              children: t.children.map((c) =>
+                c.id === task.id ? { ...c, completedDate: newCompletedDate } : c
+              ),
+            };
+          }
+          return t;
+        })
+      );
+
+      try {
+        const res = await fetch(`/api/projects/${projectId}/tasks-v2/${task.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            completedDate: newCompletedDate,
+            version: task.version,
+          }),
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || "Failed to update task");
+        }
+
+        const updated = await res.json();
+
+        // 서버 응답으로 상태 갱신 (version 등)
+        setLocalTasks((prev) =>
+          prev.map((t) => {
+            if (t.id === task.id) {
+              return { ...t, completedDate: updated.completedDate, version: updated.version };
+            }
+            if (t.children.some((c) => c.id === task.id)) {
+              return {
+                ...t,
+                children: t.children.map((c) =>
+                  c.id === task.id
+                    ? { ...c, completedDate: updated.completedDate, version: updated.version }
+                    : c
+                ),
+              };
+            }
+            return t;
+          })
+        );
+
+        toast.success(updated.completedDate ? "완료 처리되었습니다" : "완료가 취소되었습니다");
+      } catch (error) {
+        console.error(error);
+        // 실패 시 원래 상태로 복원
+        setLocalTasks((prev) =>
+          prev.map((t) => {
+            if (t.id === task.id) {
+              return { ...t, completedDate: task.completedDate };
+            }
+            if (t.children.some((c) => c.id === task.id)) {
+              return {
+                ...t,
+                children: t.children.map((c) =>
+                  c.id === task.id ? { ...c, completedDate: task.completedDate } : c
+                ),
+              };
+            }
+            return t;
+          })
+        );
+        toast.error(
+          error instanceof Error ? error.message : "업데이트에 실패했습니다"
+        );
+      } finally {
+        setTogglingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(task.id);
+          return next;
+        });
+      }
+    },
+    [isAdmin, projectId]
+  );
+
   // 하위 태스크 추가
   const handleAddSubtask = useCallback(
     async (parentId: string) => {
@@ -555,6 +654,7 @@ export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false
                   getProgress={getProgress}
                   togglingIds={togglingIds}
                   onToggleChildActive={toggleActive}
+                  onToggleChildComplete={toggleComplete}
                   onTaskClick={handleTaskClick}
                   addingToParentId={addingToParentId}
                   setAddingToParentId={setAddingToParentId}
@@ -634,6 +734,7 @@ interface MainTaskItemProps {
   getProgress: (task: TaskWithChildren) => { completed: number; total: number };
   togglingIds: Set<string>;
   onToggleChildActive: (task: TaskWithChildren) => void;
+  onToggleChildComplete: (task: TaskWithChildren) => void;
   onTaskClick: (taskId: string) => void;
   addingToParentId: string | null;
   setAddingToParentId: (id: string | null) => void;
@@ -656,6 +757,7 @@ function MainTaskItem({
   getProgress,
   togglingIds,
   onToggleChildActive,
+  onToggleChildComplete,
   onTaskClick,
   addingToParentId,
   setAddingToParentId,
@@ -810,6 +912,7 @@ function MainTaskItem({
                 isAdmin={isAdmin}
                 isToggling={togglingIds.has(child.id)}
                 onToggleActive={() => onToggleChildActive(child)}
+                onToggleComplete={() => onToggleChildComplete(child)}
                 isParentHidden={isHidden}
                 onTaskClick={onTaskClick}
                 highlightTaskId={highlightTaskId}
@@ -888,6 +991,7 @@ interface ChildTaskItemProps {
   isAdmin: boolean;
   isToggling: boolean;
   onToggleActive: () => void;
+  onToggleComplete: () => void;
   isParentHidden?: boolean;
   onTaskClick: (taskId: string) => void;
   highlightTaskId?: string | null;
@@ -899,6 +1003,7 @@ function ChildTaskItem({
   isAdmin,
   isToggling,
   onToggleActive,
+  onToggleComplete,
   isParentHidden = false,
   onTaskClick,
   highlightTaskId,
@@ -924,15 +1029,42 @@ function ChildTaskItem({
         {isLast ? "└" : "├"}
       </span>
 
-      {/* 완료 상태 */}
-      {isCompleted ? (
-        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-      ) : dday?.status === "overdue" ? (
-        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-      ) : dday?.status === "soon" ? (
-        <Clock className="h-4 w-4 text-yellow-500 shrink-0" />
+      {/* 완료 상태 - Admin이면 클릭 가능 */}
+      {isAdmin ? (
+        <button
+          type="button"
+          onClick={onToggleComplete}
+          disabled={isToggling}
+          className={cn(
+            "shrink-0 transition-transform hover:scale-110 disabled:opacity-50",
+            isCompleted && "text-green-500 hover:text-green-600",
+            !isCompleted && "text-muted-foreground hover:text-foreground"
+          )}
+          title={isCompleted ? "완료 취소" : "완료 처리"}
+        >
+          {isToggling ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isCompleted ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : dday?.status === "overdue" ? (
+            <AlertCircle className="h-4 w-4 text-destructive" />
+          ) : dday?.status === "soon" ? (
+            <Clock className="h-4 w-4 text-yellow-500" />
+          ) : (
+            <Circle className="h-4 w-4" />
+          )}
+        </button>
       ) : (
-        <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+        // Admin이 아닌 경우 기존처럼 아이콘만 표시
+        isCompleted ? (
+          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+        ) : dday?.status === "overdue" ? (
+          <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+        ) : dday?.status === "soon" ? (
+          <Clock className="h-4 w-4 text-yellow-500 shrink-0" />
+        ) : (
+          <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+        )
       )}
 
       {/* 태스크명 + 체크리스트 카운트 */}
