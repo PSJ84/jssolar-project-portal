@@ -22,7 +22,12 @@ model Organization {
   users         User[]
   projects      Project[]
   features      OrganizationFeature[]
-  taskTemplates TaskTemplate[]
+  taskTemplates  TaskTemplate[]
+  quotations     Quotation[]
+
+  // v2.5: 지식노트, 회사 할일
+  knowledgeNotes KnowledgeNote[]
+  companyTodos   CompanyTodo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,6 +67,14 @@ model User {
   assignedTodos             Todo[]      @relation("TodoAssignee")
   createdTodos              Todo[]      @relation("TodoCreatedBy")
   completedTodos            Todo[]      @relation("TodoCompletedBy")
+
+  // Quotation relations
+  createdQuotations         Quotation[]
+
+  // v2.5: 지식노트, 회사 할일
+  knowledgeNotes            KnowledgeNote[]
+  assignedCompanyTodos      CompanyTodo[] @relation("CompanyTodoAssignee")
+  createdCompanyTodos       CompanyTodo[] @relation("CompanyTodoCreator")
 
   createdAt                 DateTime    @default(now())
   updatedAt          DateTime          @updatedAt
@@ -139,6 +152,8 @@ model Project {
   projectTasks ProjectTask[]  // 레거시 (기존 프로젝트용)
   tasks        Task[]         // Phase 2 새 태스크 시스템
   todos        Todo[]         // 할 일 목록
+  quotations   Quotation[]    // 연결된 견적서
+  budgets      Budget[]       // 예산 관리
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -458,4 +473,276 @@ model Todo {
   @@index([projectId, completedDate])
   @@index([assigneeId, completedDate])
   @@index([projectId, dueDate])
+}
+
+// ==================== 견적/수익분석 시스템 ====================
+
+// 단가 카테고리
+enum PriceCategory {
+  MODULE      // 모듈
+  INVERTER    // 인버터
+  STRUCTURE   // 구조물
+  LABOR       // 인건비/공사비
+  ETC         // 기타
+}
+
+// 단가표
+model PriceTable {
+  id          String        @id @default(cuid())
+  category    PriceCategory
+  name        String        // "OO모듈 550W", "OO인버터 50kW"
+  unit        String        // "장", "대", "kW", "식"
+  unitPrice   Int           // 단가 (원)
+  spec        String?       // 사양 정보
+  isActive    Boolean       @default(true)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([category, isActive, sortOrder])
+}
+
+// 시스템 설정 (SMP, REC, 피크시간 등)
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique  // "SMP_PRICE", "REC_PRICE", "PEAK_HOURS", etc
+  value       String            // JSON 또는 단일값
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+// 견적 상태
+enum QuotationStatus {
+  DRAFT       // 작성중
+  SENT        // 발송됨
+  ACCEPTED    // 수락됨 (계약)
+  REJECTED    // 거절됨
+  EXPIRED     // 만료됨
+}
+
+// 견적서
+model Quotation {
+  id              String          @id @default(cuid())
+  quotationNumber String          @unique  // "Q-2024-001"
+  version         Int             @default(1)
+
+  // 고객 정보
+  customerName    String
+  customerPhone   String?
+  customerEmail   String?
+  address         String?
+
+  // 설치 정보
+  capacityKw      Float
+  moduleType      String
+  moduleCount     Int
+  inverterType    String
+  inverterCount   Int
+  structureType   String?
+
+  // 금액
+  totalAmount     Int             // 총 금액 (VAT 별도)
+  vatAmount       Int             // VAT
+  grandTotal      Int             // 총 금액 (VAT 포함)
+  vatIncluded     Boolean         @default(false)
+
+  // 유효기간
+  validUntil      DateTime
+
+  // 상태
+  status          QuotationStatus @default(DRAFT)
+
+  // 견적 상세 항목
+  items           QuotationItem[]
+
+  // 수익분석
+  analyses        ProfitAnalysis[]
+
+  // 프로젝트 연결 (계약 시)
+  projectId       String?
+  project         Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  // 조직
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdById     String
+  createdBy       User            @relation(fields: [createdById], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([organizationId, status])
+  @@index([quotationNumber])
+  @@index([createdById])
+}
+
+// 견적 항목
+model QuotationItem {
+  id            String    @id @default(cuid())
+  quotationId   String
+  quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  category      String    // MODULE, INVERTER, etc
+  name          String
+  spec          String?
+  unit          String
+  quantity      Int
+  unitPrice     Int
+  amount        Int       // quantity * unitPrice
+  sortOrder     Int       @default(0)
+
+  @@index([quotationId, sortOrder])
+}
+
+// 금융 모델
+enum FinancingType {
+  SELF_FUNDING      // 자부담 100%
+  BANK_LOAN         // 은행 80% 대출
+  GOVERNMENT_LOAN   // 금융지원사업
+  FACTORING         // 팩토링
+}
+
+// 수익분석
+model ProfitAnalysis {
+  id              String        @id @default(cuid())
+  quotationId     String
+  quotation       Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  // 금융 모델
+  financingType   FinancingType
+
+  // 입력값
+  totalInvestment Int           // 총 투자금
+  selfFundingRate Float         // 자부담 비율 (0~1)
+  loanAmount      Int           // 대출금
+  interestRate    Float         // 금리 (%)
+  loanPeriod      Int           // 대출 기간 (년)
+  gracePeriod     Int           @default(0)  // 거치 기간 (년)
+
+  // 팩토링 수수료
+  guaranteeFeeRate  Float?      // 보증료율 (서울보증)
+  factoringFeeRate  Float?      // 팩토링 수수료율 (동부화재)
+
+  // 발전 설정
+  peakHours         Float       // 피크시간 (3.6~3.7)
+  degradationRate   Float       // 효율저하율 (0.008)
+
+  // 단가
+  smpPrice          Int         // SMP 단가
+  recPrice          Int         // REC 단가
+  recWeight         Float       // REC 가중치
+
+  // 연간 비용
+  maintenanceCost   Int         // 안전관리비
+  monitoringCost    Int         // 모니터링비
+
+  // 결과 (20년 데이터 JSON)
+  yearlyData        Json        // [{year, generation, revenue, expense, netProfit, cumulative}]
+
+  // 요약
+  paybackPeriod     Float       // 회수 기간 (년)
+  totalProfit20y    Int         // 20년 총 수익
+  roi               Float       // ROI (%)
+
+  createdAt         DateTime    @default(now())
+
+  @@index([quotationId])
+}
+
+// ==========================================
+// v2.5 통합 솔루션 시스템
+// ==========================================
+
+// 지식노트 카테고리
+enum KnowledgeCategory {
+  CONSTRUCTION  // 시공노하우
+  PERMIT        // 인허가팁
+  MATERIAL      // 자재정보
+  REGULATION    // 법규
+  CONTACT       // 연락처
+  OTHER         // 기타
+}
+
+// 예산 카테고리
+enum BudgetCategory {
+  MATERIAL      // 자재비
+  LABOR         // 인건비
+  EQUIPMENT     // 장비비
+  PERMIT        // 인허가비용
+  TRANSPORT     // 운송비
+  OTHER         // 기타
+}
+
+// 회사 할일 카테고리
+enum CompanyTodoCategory {
+  ADMIN         // 행정
+  FINANCE       // 재무
+  SALES         // 영업
+  HR            // 인사
+  OTHER         // 기타
+}
+
+// 지식노트
+model KnowledgeNote {
+  id          String            @id @default(cuid())
+  title       String
+  content     String            @db.Text
+  category    KnowledgeCategory
+  tags        String[]          // 태그 배열
+  isPinned    Boolean           @default(false)
+
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdById    String
+  createdBy      User            @relation(fields: [createdById], references: [id])
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, category])
+  @@index([organizationId, isPinned])
+}
+
+// 회사 할일 (프로젝트 무관)
+model CompanyTodo {
+  id            String              @id @default(cuid())
+  title         String
+  description   String?             @db.Text
+  dueDate       DateTime?
+  priority      TodoPriority        @default(MEDIUM)
+  completedDate DateTime?
+  category      CompanyTodoCategory @default(OTHER)
+
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  assigneeId     String?
+  assignee       User?               @relation("CompanyTodoAssignee", fields: [assigneeId], references: [id])
+
+  createdById    String
+  createdBy      User                @relation("CompanyTodoCreator", fields: [createdById], references: [id])
+
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([organizationId, completedDate])
+  @@index([assigneeId, completedDate])
+}
+
+// 프로젝트 예산
+model Budget {
+  id            String         @id @default(cuid())
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  category      BudgetCategory
+  description   String
+  plannedAmount Float          // 계획 금액
+  actualAmount  Float          @default(0) // 실제 집행 금액
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([projectId, category])
 }

@@ -15,14 +15,27 @@ import {
   Building2,
   ListTodo,
   LayoutDashboard,
+  FileText,
+  Lightbulb,
+  CheckSquare,
+  BookOpen,
+  DollarSign,
 } from "lucide-react";
 
 const navigation = [
   { name: "대시보드", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "프로젝트 관리", href: "/admin/projects", icon: FolderKanban },
+  { name: "견적 관리", href: "/admin/quotations", icon: FileText },
   { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "템플릿 관리", href: "/admin/templates", icon: ListTodo },
   { name: "설정", href: "/admin/settings", icon: Settings },
+];
+
+const solutionNavigation = [
+  { name: "통합 솔루션", href: "/admin/solution", icon: Lightbulb },
+  { name: "회사 할 일", href: "/admin/solution/company-todos", icon: CheckSquare },
+  { name: "지식노트", href: "/admin/solution/knowledge", icon: BookOpen },
+  { name: "예산 현황", href: "/admin/solution/budget", icon: DollarSign },
 ];
 
 const superAdminNavigation = [
@@ -90,6 +103,31 @@ export function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
         {/* Regular Admin Menu */}
         {navigation.map((item) => {
           const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </Link>
+          );
+        })}
+
+        {/* Solution Menu */}
+        <div className="my-3 border-b" />
+        <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
+          통합 솔루션
+        </p>
+        {solutionNavigation.map((item) => {
+          const isActive = pathname === item.href ||
+            (item.href !== "/admin/solution" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.name}

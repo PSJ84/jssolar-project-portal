@@ -451,6 +451,28 @@ async function main() {
     console.log('Task templates already exist');
   }
 
+  // ==================== SystemConfig (견적/수익분석 설정) ====================
+  const systemConfigDefaults = [
+    { key: 'SMP_PRICE', value: '120', description: 'SMP 단가 (원/kWh)' },
+    { key: 'REC_PRICE', value: '40000', description: 'REC 단가 (원/REC)' },
+    { key: 'REC_WEIGHT', value: '1.0', description: 'REC 가중치' },
+    { key: 'PEAK_HOURS', value: '3.7', description: '피크시간 (시간/일)' },
+    { key: 'DEGRADATION_RATE', value: '0.008', description: '연간 효율저하율' },
+    { key: 'MAINTENANCE_COST', value: '500000', description: '안전관리비 (원/년)' },
+    { key: 'MONITORING_COST', value: '300000', description: '모니터링비 (원/년)' },
+    { key: 'QUOTATION_VALID_DAYS', value: '30', description: '견적서 유효기간 (일)' },
+  ];
+
+  for (const config of systemConfigDefaults) {
+    const existing = await prisma.systemConfig.findUnique({
+      where: { key: config.key },
+    });
+    if (!existing) {
+      await prisma.systemConfig.create({ data: config });
+      console.log(`SystemConfig created: ${config.key} = ${config.value}`);
+    }
+  }
+
   // ==================== Update existing Tasks with permit flags ====================
   const permitTaskNames = [
     '발전사업허가', '개발행위허가', 'PPA신청', '공사계획신고',

@@ -24,7 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Pencil, Key, User, Mail, Shield } from "lucide-react";
+import { Loader2, Pencil, Key, User, Mail, Shield, Calculator, ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 interface UserProfile {
   id: string;
@@ -427,6 +428,35 @@ export default function AdminSettingsPage() {
               )}
               비밀번호 변경
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Price Table Management Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="h-5 w-5" />
+                단가표 관리
+              </CardTitle>
+              <CardDescription>
+                견적서 작성에 사용되는 단가와 시스템 설정을 관리합니다.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/settings/price-table">
+                관리
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            <p>모듈, 인버터, 구조물, 인건비 등의 단가를 카테고리별로 관리할 수 있습니다.</p>
+            <p className="mt-1">SMP, REC 단가, 피크시간 등 수익분석에 사용되는 시스템 설정도 함께 관리합니다.</p>
           </div>
         </CardContent>
       </Card>

@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ProjectStatus, ChecklistStatus } from "@prisma/client";
-import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock, CheckCircle2, AlertTriangle, ListTodo, ClipboardList } from "lucide-react";
+import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock, CheckCircle2, AlertTriangle, ListTodo, ClipboardList, DollarSign } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
 import { DocumentManagement } from "@/components/project/document-management";
 import { ProjectOverviewEdit } from "@/components/project/project-overview-edit";
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 import { TodoList } from "@/components/todos/TodoList";
+import { ProjectBudgetSection } from "@/components/budget/ProjectBudgetSection";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -283,6 +284,7 @@ export default async function AdminProjectDetailPage({
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="tasks">진행 단계</TabsTrigger>
           <TabsTrigger value="todos">할 일</TabsTrigger>
+          <TabsTrigger value="budget">예산</TabsTrigger>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
@@ -355,6 +357,11 @@ export default async function AdminProjectDetailPage({
               updatedAt: todo.updatedAt.toISOString(),
             }))}
           />
+        </TabsContent>
+
+        {/* 예산 탭 */}
+        <TabsContent value="budget" className="space-y-4">
+          <ProjectBudgetSection projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
