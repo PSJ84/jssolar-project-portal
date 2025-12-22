@@ -40,7 +40,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   LOW: "bg-gray-100 text-gray-800",
   MEDIUM: "bg-blue-100 text-blue-800",
   HIGH: "bg-orange-100 text-orange-800",
-  URGENT: "bg-red-100 text-red-800",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -108,7 +107,7 @@ export default function SolutionHubPage() {
   };
 
   const urgentTodos = todos.filter(
-    (t) => t.priority === "URGENT" || t.priority === "HIGH" || isOverdue(t.dueDate)
+    (t) => t.priority === "HIGH" || isOverdue(t.dueDate)
   );
 
   return (
@@ -206,9 +205,7 @@ export default function SolutionHubPage() {
                         <Badge
                           className={`text-xs ${PRIORITY_COLORS[todo.priority]}`}
                         >
-                          {todo.priority === "URGENT"
-                            ? "긴급"
-                            : todo.priority === "HIGH"
+                          {todo.priority === "HIGH"
                             ? "높음"
                             : todo.priority === "MEDIUM"
                             ? "보통"

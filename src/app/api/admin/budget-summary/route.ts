@@ -67,7 +67,6 @@ export async function GET() {
       projectsWithBudget: projectSummaries.filter((p) => p.budgetCount > 0).length,
     };
 
-    overallSummary.totalPlanned;
     const overallExecutionRate =
       overallSummary.totalPlanned > 0
         ? (overallSummary.totalActual / overallSummary.totalPlanned) * 100

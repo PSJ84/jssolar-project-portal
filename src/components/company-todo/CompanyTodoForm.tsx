@@ -61,7 +61,6 @@ const PRIORITY_OPTIONS = [
   { value: "LOW", label: "낮음" },
   { value: "MEDIUM", label: "보통" },
   { value: "HIGH", label: "높음" },
-  { value: "URGENT", label: "긴급" },
 ];
 
 export function CompanyTodoForm({
@@ -78,7 +77,7 @@ export function CompanyTodoForm({
   );
   const [priority, setPriority] = useState(initialData?.priority || "MEDIUM");
   const [category, setCategory] = useState(initialData?.category || "OTHER");
-  const [assigneeId, setAssigneeId] = useState(initialData?.assigneeId || "");
+  const [assigneeId, setAssigneeId] = useState(initialData?.assigneeId || "__none__");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,7 +92,7 @@ export function CompanyTodoForm({
         dueDate,
         priority,
         category,
-        assigneeId: assigneeId || undefined,
+        assigneeId: assigneeId && assigneeId !== "__none__" ? assigneeId : undefined,
       });
       if (!isEdit) {
         setTitle("");
@@ -101,7 +100,7 @@ export function CompanyTodoForm({
         setDueDate(undefined);
         setPriority("MEDIUM");
         setCategory("OTHER");
-        setAssigneeId("");
+        setAssigneeId("__none__");
       }
     } finally {
       setIsLoading(false);
@@ -196,8 +195,8 @@ export function CompanyTodoForm({
               <SelectValue placeholder="담당자 선택" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">미지정</SelectItem>
-              {users.map((user) => (
+              <SelectItem value="__none__">미지정</SelectItem>
+              {users.filter(user => user.id).map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name || "이름 없음"}
                 </SelectItem>

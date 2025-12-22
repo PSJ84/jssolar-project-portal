@@ -70,14 +70,12 @@ const PRIORITY_LABELS: Record<string, string> = {
   LOW: "낮음",
   MEDIUM: "보통",
   HIGH: "높음",
-  URGENT: "긴급",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
   LOW: "bg-gray-100 text-gray-800",
   MEDIUM: "bg-blue-100 text-blue-800",
   HIGH: "bg-orange-100 text-orange-800",
-  URGENT: "bg-red-100 text-red-800",
 };
 
 export function CompanyTodoList({
