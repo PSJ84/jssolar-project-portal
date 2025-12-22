@@ -12,6 +12,7 @@ import {
   ArrowRight,
   AlertTriangle,
 } from "lucide-react";
+import { calculateWeightedProgress } from "@/lib/progress-utils";
 
 interface TaskWithChildren {
   id: string;
@@ -24,6 +25,7 @@ interface TaskWithChildren {
   isPermitTask?: boolean;
   submittedDate?: string | null;
   processingDays?: number | null;
+  phase?: "PERMIT" | "CONSTRUCTION" | "OTHER";
   children: TaskWithChildren[];
 }
 
@@ -81,10 +83,15 @@ export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
   const inProgress = activeTasks.filter(t => getTaskStatus(t) === "in_progress");
   const waiting = activeTasks.filter(t => getTaskStatus(t) === "waiting");
 
-  // 진행률 계산
+  // 진행률 계산 (가중치 기반)
   const total = activeTasks.length;
   const completedCount = completed.length;
-  const progressPercent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+  const progressPercent = total > 0
+    ? calculateWeightedProgress(activeTasks.map(t => ({
+        phase: t.phase || "PERMIT",
+        completedDate: t.completedDate ? new Date(t.completedDate) : null,
+      })))
+    : 0;
 
   // 현재 진행중 (접수 + 진행중) - D-day 급한 순 정렬
   const currentTasks = [...submitted, ...inProgress].sort((a, b) => {

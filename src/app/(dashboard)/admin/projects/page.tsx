@@ -3,16 +3,16 @@ import { Button } from "@/components/ui/button";
 import { ProjectTable } from "@/components/project/project-table";
 import { prisma } from "@/lib/prisma";
 import { Plus } from "lucide-react";
+import { calculateWeightedProgress } from "@/lib/progress-utils";
 
-// 진행률 계산 함수 (하위 태스크 기준, 활성화된 것만)
-function calculateProgress(tasks: { isActive: boolean; children: { isActive: boolean; completedDate: Date | null }[] }[]): number {
+// 진행률 계산 함수 (하위 태스크 기준, 활성화된 것만, 가중치 적용)
+function calculateProgress(tasks: { isActive: boolean; children: { isActive: boolean; completedDate: Date | null; phase: "PERMIT" | "CONSTRUCTION" | "OTHER" }[] }[]): number {
   const activeTasks = tasks.filter(t => t.isActive);
   const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
 
   if (allChildTasks.length === 0) return 0;
 
-  const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
-  return Math.round((completedTasks / allChildTasks.length) * 100);
+  return calculateWeightedProgress(allChildTasks);
 }
 
 async function getProjects() {
@@ -30,7 +30,7 @@ async function getProjects() {
             documents: true,
           },
         },
-        // 진행률 계산을 위한 태스크 조회
+        // 진행률 계산을 위한 태스크 조회 (가중치 계산용 phase 포함)
         tasks: {
           where: { parentId: null },
           select: {
@@ -39,6 +39,7 @@ async function getProjects() {
               select: {
                 isActive: true,
                 completedDate: true,
+                phase: true,
               },
             },
           },

@@ -150,7 +150,7 @@ model Project {
   tasks        Task[]         // Phase 2 새 태스크 시스템
   todos        Todo[]         // 할 일 목록
   quotations   Quotation[]    // 연결된 견적서
-  budgets      Budget[]       // 예산 관리
+  budgetItems  BudgetItem[]   // v2.5: 예산 관리 (품목 기반)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -331,6 +331,13 @@ enum TodoPriority {
   LOW
 }
 
+// Task phase for weighted progress calculation
+enum TaskPhase {
+  PERMIT        // 인허가/행정
+  CONSTRUCTION  // 시공
+  OTHER         // 기타
+}
+
 // ==================== Phase 2: 태스크 템플릿 ====================
 
 model TaskTemplate {
@@ -355,6 +362,9 @@ model TaskTemplate {
   // 인허가 단계 설정
   isPermitTask   Boolean @default(false) // 인허가 여부
   processingDays Int?                     // 처리기한 (일)
+
+  // v2.5: 진행률 가중치 단계
+  phase TaskPhase @default(PERMIT)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -408,6 +418,9 @@ model Task {
   assignee     User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   memo         String? @db.Text
   isActive     Boolean @default(true) // 숨김/보임 토글
+
+  // v2.5: 진행률 가중치 단계
+  phase TaskPhase @default(PERMIT)
 
   // 낙관적 동시성 제어
   version Int @default(1)
@@ -660,14 +673,10 @@ enum KnowledgeCategory {
   OTHER         // 기타
 }
 
-// 예산 카테고리
-enum BudgetCategory {
-  MATERIAL      // 자재비
-  LABOR         // 인건비
-  EQUIPMENT     // 장비비
-  PERMIT        // 인허가비용
-  TRANSPORT     // 운송비
-  OTHER         // 기타
+// 예산 타입 (매출/매입)
+enum BudgetType {
+  INCOME    // 매출 (수입)
+  EXPENSE   // 매입 (지출)
 }
 
 
@@ -694,19 +703,39 @@ model KnowledgeNote {
 }
 
 
-// 프로젝트 예산
-model Budget {
-  id            String         @id @default(cuid())
+// 예산 품목 (계획)
+model BudgetItem {
+  id            String   @id @default(cuid())
   projectId     String
-  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  category      BudgetCategory
-  description   String
-  plannedAmount Float          // 계획 금액
-  actualAmount  Float          @default(0) // 실제 집행 금액
+  type          BudgetType        // INCOME / EXPENSE
+  category      String            // "도급계약", "구조물자재", "전기공사" 등
+  plannedAmount Int               // 계획 금액
+  memo          String?           // 메모
+  sortOrder     Int      @default(0)
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  transactions  BudgetTransaction[]
 
-  @@index([projectId, category])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([projectId, type])
+}
+
+// 거래 내역 (건별)
+model BudgetTransaction {
+  id            String     @id @default(cuid())
+  budgetItemId  String
+  budgetItem    BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+
+  date          DateTime          // 거래일
+  description   String            // "계약금", "중도금", "잔금", "추가비용" 등
+  amount        Int               // 금액
+  isCompleted   Boolean  @default(true)  // 완료=true, 예정=false
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([budgetItemId, date])
 }

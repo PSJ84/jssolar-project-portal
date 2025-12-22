@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { calculateWeightedProgress } from "@/lib/progress-utils";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
@@ -39,7 +40,7 @@ export default async function AdminDashboardPage() {
     orderBy: { dueDate: "asc" },
   });
 
-  // 2. 프로젝트 목록 + 진행률
+  // 2. 프로젝트 목록 + 진행률 (가중치 기반)
   const projects = await prisma.project.findMany({
     where: { organizationId, status: "ACTIVE" },
     select: {
@@ -47,7 +48,7 @@ export default async function AdminDashboardPage() {
       name: true,
       tasks: {
         where: { parentId: null, isActive: true },
-        select: { completedDate: true },
+        select: { completedDate: true, phase: true },
       },
     },
     orderBy: { updatedAt: "desc" },
@@ -58,13 +59,7 @@ export default async function AdminDashboardPage() {
     name: p.name,
     total: p.tasks.length,
     completed: p.tasks.filter((t) => t.completedDate).length,
-    percent:
-      p.tasks.length > 0
-        ? Math.round(
-            (p.tasks.filter((t) => t.completedDate).length / p.tasks.length) *
-              100
-          )
-        : 0,
+    percent: calculateWeightedProgress(p.tasks),
   }));
 
   // 3. KPI 데이터

@@ -14,6 +14,7 @@ import { ProjectOverviewEdit } from "@/components/project/project-overview-edit"
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 import { TodoList } from "@/components/todos/TodoList";
 import { ProjectBudgetSection } from "@/components/budget/ProjectBudgetSection";
+import { calculateWeightedProgress } from "@/lib/progress-utils";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -82,7 +83,7 @@ export default async function AdminProjectDetailPage({
       projectTasks: {
         orderBy: { displayOrder: "asc" },
       },
-      // Phase 2 Task
+      // Phase 2 Task (가중치 진행률 계산용 phase 포함)
       tasks: {
         where: { parentId: null },
         include: {
@@ -219,7 +220,10 @@ export default async function AdminProjectDetailPage({
           return due < today;
         }).length;
 
-        const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        // 가중치 기반 진행률 계산
+        const progressPercent = totalTasks > 0
+          ? calculateWeightedProgress(allChildTasks.map(c => ({ phase: c.phase, completedDate: c.completedDate })))
+          : 0;
 
         return (
           <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/30 rounded-lg border">

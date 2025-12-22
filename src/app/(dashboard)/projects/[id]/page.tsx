@@ -253,7 +253,7 @@ export default async function ClientProjectDetailPage({
         </div>
       </div>
 
-      {/* 진행률 요약 - 항상 표시 */}
+      {/* 진행률 요약 - 항상 표시 (가중치 기반) */}
       <ClientProgressSummary
         tasks={project.tasks.map((task) => ({
           id: task.id,
@@ -266,6 +266,7 @@ export default async function ClientProjectDetailPage({
           isPermitTask: task.isPermitTask,
           submittedDate: task.submittedDate?.toISOString() ?? null,
           processingDays: task.processingDays,
+          phase: task.phase,
           children: task.children.map((child) => ({
             id: child.id,
             name: child.name,
@@ -274,6 +275,7 @@ export default async function ClientProjectDetailPage({
             startDate: child.startDate?.toISOString() ?? null,
             dueDate: child.dueDate?.toISOString() ?? null,
             completedDate: child.completedDate?.toISOString() ?? null,
+            phase: child.phase,
             children: [],
           })),
         }))}
