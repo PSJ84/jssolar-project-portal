@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -38,15 +39,35 @@ import {
   Clock,
   ArrowUpCircle,
   ArrowDownCircle,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getDisplayAmount, getVatAmount } from "@/lib/vat-utils";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface BudgetTransaction {
   id: string;
   date: string;
   description: string;
   amount: number;
+  vatIncluded: boolean;
   isCompleted: boolean;
 }
 
@@ -55,6 +76,7 @@ interface BudgetItem {
   type: "INCOME" | "EXPENSE";
   category: string;
   plannedAmount: number;
+  vatIncluded: boolean;
   memo: string | null;
   sortOrder: number;
   transactions: BudgetTransaction[];
@@ -68,6 +90,39 @@ interface BudgetSummary {
 
 interface ProjectBudgetSectionProps {
   projectId: string;
+}
+
+// Sortable Budget Item Wrapper
+function SortableBudgetItem({ item, children }: { item: BudgetItem; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div className="flex items-center">
+        <button
+          {...listeners}
+          className="p-2 cursor-grab active:cursor-grabbing touch-none"
+          type="button"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </button>
+        <div className="flex-1">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 // 금액 포맷
@@ -93,9 +148,17 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
   const [editingTx, setEditingTx] = useState<{ item: BudgetItem; tx: BudgetTransaction | null } | null>(null);
 
   // Form states
-  const [itemForm, setItemForm] = useState({ type: "INCOME" as "INCOME" | "EXPENSE", category: "", plannedAmount: "", memo: "" });
-  const [txForm, setTxForm] = useState({ date: "", description: "", amount: "", isCompleted: true });
+  const [itemForm, setItemForm] = useState({ type: "INCOME" as "INCOME" | "EXPENSE", category: "", plannedAmount: "", vatIncluded: false, memo: "" });
+  const [txForm, setTxForm] = useState({ date: "", description: "", amount: "", vatIncluded: false, isCompleted: true });
   const [saving, setSaving] = useState(false);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // 데이터 로드
   const fetchData = useCallback(async () => {
@@ -145,6 +208,7 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
           type: itemForm.type,
           category: itemForm.category,
           plannedAmount: parseInt(itemForm.plannedAmount.replace(/,/g, "")),
+          vatIncluded: itemForm.vatIncluded,
           memo: itemForm.memo || null,
         }),
       });
@@ -154,7 +218,7 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
       toast.success(editingItem ? "수정되었습니다" : "추가되었습니다");
       setItemDialogOpen(false);
       setEditingItem(null);
-      setItemForm({ type: "INCOME", category: "", plannedAmount: "", memo: "" });
+      setItemForm({ type: "INCOME", category: "", plannedAmount: "", vatIncluded: false, memo: "" });
       fetchData();
     } catch (error) {
       toast.error("저장에 실패했습니다");
@@ -200,7 +264,8 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
         body: JSON.stringify({
           date: txForm.date,
           description: txForm.description,
-          amount: parseInt(txForm.amount.replace(/,/g, "")),
+          amount: parseInt(txForm.amount.replace(/,/g, "").replace(/^-/, "")) * (txForm.amount.startsWith("-") ? -1 : 1),
+          vatIncluded: txForm.vatIncluded,
           isCompleted: txForm.isCompleted,
         }),
       });
@@ -210,7 +275,7 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
       toast.success(editingTx.tx ? "수정되었습니다" : "추가되었습니다");
       setTxDialogOpen(false);
       setEditingTx(null);
-      setTxForm({ date: "", description: "", amount: "", isCompleted: true });
+      setTxForm({ date: "", description: "", amount: "", vatIncluded: false, isCompleted: true });
       fetchData();
     } catch (error) {
       toast.error("저장에 실패했습니다");
@@ -245,11 +310,12 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
         type: item.type,
         category: item.category,
         plannedAmount: formatAmount(item.plannedAmount),
+        vatIncluded: item.vatIncluded,
         memo: item.memo || "",
       });
     } else {
       setEditingItem(null);
-      setItemForm({ type: type || "INCOME", category: "", plannedAmount: "", memo: "" });
+      setItemForm({ type: type || "INCOME", category: "", plannedAmount: "", vatIncluded: false, memo: "" });
     }
     setItemDialogOpen(true);
   };
@@ -261,7 +327,8 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
       setTxForm({
         date: tx.date.split("T")[0],
         description: tx.description,
-        amount: formatAmount(tx.amount),
+        amount: tx.amount < 0 ? `-${formatAmount(Math.abs(tx.amount))}` : formatAmount(tx.amount),
+        vatIncluded: tx.vatIncluded,
         isCompleted: tx.isCompleted,
       });
     } else {
@@ -269,17 +336,56 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
         date: new Date().toISOString().split("T")[0],
         description: "",
         amount: "",
+        vatIncluded: false,
         isCompleted: true,
       });
     }
     setTxDialogOpen(true);
   };
 
-  // 품목별 실제 금액 계산
+  // 품목별 실제 금액 계산 (VAT 포함)
   const getActualAmount = (item: BudgetItem) => {
     return item.transactions
       .filter((tx) => tx.isCompleted)
-      .reduce((sum, tx) => sum + tx.amount, 0);
+      .reduce((sum, tx) => sum + getDisplayAmount(tx.amount, tx.vatIncluded), 0);
+  };
+
+  // 품목 계획 금액 (VAT 포함)
+  const getPlannedDisplayAmount = (item: BudgetItem) => {
+    return getDisplayAmount(item.plannedAmount, item.vatIncluded);
+  };
+
+  // 드래그앤드롭 순서 변경 핸들러
+  const handleDragEnd = async (event: DragEndEvent, type: "INCOME" | "EXPENSE") => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const typeItems = type === "INCOME" ? incomeItems : expenseItems;
+    const oldIndex = typeItems.findIndex((i) => i.id === active.id);
+    const newIndex = typeItems.findIndex((i) => i.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reorderedItems = arrayMove(typeItems, oldIndex, newIndex);
+
+    // 낙관적 업데이트
+    if (type === "INCOME") {
+      setItems([...reorderedItems, ...expenseItems]);
+    } else {
+      setItems([...incomeItems, ...reorderedItems]);
+    }
+
+    // API 호출
+    try {
+      await fetch(`/api/projects/${projectId}/budget-items/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemIds: reorderedItems.map((i) => i.id) }),
+      });
+    } catch (error) {
+      console.error("Failed to reorder:", error);
+      fetchData(); // 실패 시 원래 순서로 복원
+    }
   };
 
   if (loading) {
@@ -393,28 +499,35 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
           {incomeItems.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">등록된 매출 품목이 없습니다</p>
           ) : (
-            <Accordion type="multiple" className="space-y-2">
-              {incomeItems.map((item) => {
-                const actual = getActualAmount(item);
-                const diff = actual - item.plannedAmount;
-                return (
-                  <AccordionItem key={item.id} value={item.id} className="border rounded-lg px-4">
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center justify-between flex-1 mr-2">
-                        <span className="font-medium">{item.category}</span>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-muted-foreground">
-                            계획: {formatAmount(item.plannedAmount)}
-                          </span>
-                          <span className="text-blue-600">
-                            실제: {formatAmount(actual)}
-                          </span>
-                          <Badge variant={diff >= 0 ? "default" : "destructive"} className="text-xs">
-                            {diff >= 0 ? "+" : ""}{formatAmount(diff)}
-                          </Badge>
-                        </div>
-                      </div>
-                    </AccordionTrigger>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, "INCOME")}>
+              <SortableContext items={incomeItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <Accordion type="multiple" className="space-y-2">
+                  {incomeItems.map((item) => {
+                    const planned = getPlannedDisplayAmount(item);
+                    const actual = getActualAmount(item);
+                    const diff = actual - planned;
+                    return (
+                      <SortableBudgetItem key={item.id} item={item}>
+                        <AccordionItem value={item.id} className="border rounded-lg px-4">
+                          <AccordionTrigger className="hover:no-underline py-3">
+                            <div className="flex items-center justify-between flex-1 mr-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{item.category}</span>
+                                {item.vatIncluded && <Badge variant="outline" className="text-xs">VAT</Badge>}
+                              </div>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="text-muted-foreground">
+                                  계획: {formatAmount(planned)}
+                                </span>
+                                <span className="text-blue-600">
+                                  실제: {formatAmount(actual)}
+                                </span>
+                                <Badge variant={diff >= 0 ? "default" : "destructive"} className="text-xs">
+                                  {diff >= 0 ? "+" : ""}{formatAmount(diff)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-3 pb-3">
                         {/* 품목 액션 */}
@@ -436,28 +549,34 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                         {/* 거래 내역 */}
                         {item.transactions.length > 0 ? (
                           <div className="space-y-2">
-                            {item.transactions.map((tx) => (
-                              <div key={tx.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
-                                <div className="flex items-center gap-2">
-                                  {tx.isCompleted ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                  ) : (
-                                    <Clock className="h-4 w-4 text-yellow-500" />
-                                  )}
-                                  <span className="text-muted-foreground">{formatDate(tx.date)}</span>
-                                  <span>{tx.description}</span>
+                            {item.transactions.map((tx) => {
+                              const displayAmount = getDisplayAmount(tx.amount, tx.vatIncluded);
+                              return (
+                                <div key={tx.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                                  <div className="flex items-center gap-2">
+                                    {tx.isCompleted ? (
+                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    ) : (
+                                      <Clock className="h-4 w-4 text-yellow-500" />
+                                    )}
+                                    <span className="text-muted-foreground">{formatDate(tx.date)}</span>
+                                    <span>{tx.description}</span>
+                                    {tx.vatIncluded && <Badge variant="outline" className="text-xs">VAT</Badge>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn("font-medium", tx.amount < 0 && "text-red-600")}>
+                                      {tx.amount < 0 ? "-" : ""}{formatAmount(Math.abs(displayAmount))}
+                                    </span>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openTxDialog(item, tx)}>
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteTx(item, tx)}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{formatAmount(tx.amount)}</span>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openTxDialog(item, tx)}>
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteTx(item, tx)}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground text-center py-2">거래 내역이 없습니다</p>
@@ -470,9 +589,12 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                       </div>
                     </AccordionContent>
                   </AccordionItem>
+                </SortableBudgetItem>
                 );
               })}
-            </Accordion>
+              </Accordion>
+            </SortableContext>
+          </DndContext>
           )}
         </CardContent>
       </Card>
@@ -495,28 +617,35 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
           {expenseItems.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">등록된 매입 품목이 없습니다</p>
           ) : (
-            <Accordion type="multiple" className="space-y-2">
-              {expenseItems.map((item) => {
-                const actual = getActualAmount(item);
-                const diff = item.plannedAmount - actual; // 예산 대비 절감이 +
-                return (
-                  <AccordionItem key={item.id} value={item.id} className="border rounded-lg px-4">
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center justify-between flex-1 mr-2">
-                        <span className="font-medium">{item.category}</span>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-muted-foreground">
-                            계획: {formatAmount(item.plannedAmount)}
-                          </span>
-                          <span className="text-red-600">
-                            실제: {formatAmount(actual)}
-                          </span>
-                          <Badge variant={diff >= 0 ? "secondary" : "destructive"} className="text-xs">
-                            {diff >= 0 ? "절감 " : "초과 "}{formatAmount(Math.abs(diff))}
-                          </Badge>
-                        </div>
-                      </div>
-                    </AccordionTrigger>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, "EXPENSE")}>
+            <SortableContext items={expenseItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <Accordion type="multiple" className="space-y-2">
+                {expenseItems.map((item) => {
+                  const planned = getPlannedDisplayAmount(item);
+                  const actual = getActualAmount(item);
+                  const diff = planned - actual; // 예산 대비 절감이 +
+                  return (
+                    <SortableBudgetItem key={item.id} item={item}>
+                      <AccordionItem value={item.id} className="border rounded-lg px-4">
+                        <AccordionTrigger className="hover:no-underline py-3">
+                          <div className="flex items-center justify-between flex-1 mr-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{item.category}</span>
+                              {item.vatIncluded && <Badge variant="outline" className="text-xs">VAT</Badge>}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="text-muted-foreground">
+                                계획: {formatAmount(planned)}
+                              </span>
+                              <span className="text-red-600">
+                                실제: {formatAmount(actual)}
+                              </span>
+                              <Badge variant={diff >= 0 ? "secondary" : "destructive"} className="text-xs">
+                                {diff >= 0 ? "절감 " : "초과 "}{formatAmount(Math.abs(diff))}
+                              </Badge>
+                            </div>
+                          </div>
+                        </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-3 pb-3">
                         {/* 품목 액션 */}
@@ -538,28 +667,34 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                         {/* 거래 내역 */}
                         {item.transactions.length > 0 ? (
                           <div className="space-y-2">
-                            {item.transactions.map((tx) => (
-                              <div key={tx.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
-                                <div className="flex items-center gap-2">
-                                  {tx.isCompleted ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                  ) : (
-                                    <Clock className="h-4 w-4 text-yellow-500" />
-                                  )}
-                                  <span className="text-muted-foreground">{formatDate(tx.date)}</span>
-                                  <span>{tx.description}</span>
+                            {item.transactions.map((tx) => {
+                              const displayAmount = getDisplayAmount(tx.amount, tx.vatIncluded);
+                              return (
+                                <div key={tx.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                                  <div className="flex items-center gap-2">
+                                    {tx.isCompleted ? (
+                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    ) : (
+                                      <Clock className="h-4 w-4 text-yellow-500" />
+                                    )}
+                                    <span className="text-muted-foreground">{formatDate(tx.date)}</span>
+                                    <span>{tx.description}</span>
+                                    {tx.vatIncluded && <Badge variant="outline" className="text-xs">VAT</Badge>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn("font-medium", tx.amount < 0 && "text-red-600")}>
+                                      {tx.amount < 0 ? "-" : ""}{formatAmount(Math.abs(displayAmount))}
+                                    </span>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openTxDialog(item, tx)}>
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteTx(item, tx)}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{formatAmount(tx.amount)}</span>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openTxDialog(item, tx)}>
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteTx(item, tx)}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground text-center py-2">거래 내역이 없습니다</p>
@@ -572,9 +707,12 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                );
-              })}
-            </Accordion>
+                </SortableBudgetItem>
+                  );
+                })}
+              </Accordion>
+            </SortableContext>
+          </DndContext>
           )}
         </CardContent>
       </Card>
@@ -616,6 +754,16 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                 }}
                 placeholder="0"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="itemVatIncluded"
+                checked={itemForm.vatIncluded}
+                onCheckedChange={(checked) => setItemForm({ ...itemForm, vatIncluded: checked === true })}
+              />
+              <Label htmlFor="itemVatIncluded" className="cursor-pointer">
+                부가세 포함 (계획 금액에 10% VAT 추가)
+              </Label>
             </div>
             <div className="space-y-2">
               <Label>메모 (선택)</Label>
@@ -664,23 +812,34 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label>금액 (원)</Label>
+              <Label>금액 (원) - 환불/조정 시 마이너스(-) 입력 가능</Label>
               <Input
                 value={txForm.amount}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/,/g, "").replace(/\D/g, "");
-                  setTxForm({ ...txForm, amount: raw ? formatAmount(parseInt(raw)) : "" });
+                  const value = e.target.value;
+                  const isNegative = value.startsWith("-");
+                  const raw = value.replace(/,/g, "").replace(/[^0-9]/g, "");
+                  const formatted = raw ? formatAmount(parseInt(raw)) : "";
+                  setTxForm({ ...txForm, amount: isNegative && formatted ? `-${formatted}` : formatted });
                 }}
-                placeholder="0"
+                placeholder="0 또는 -100,000"
               />
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
+                id="txVatIncluded"
+                checked={txForm.vatIncluded}
+                onCheckedChange={(checked) => setTxForm({ ...txForm, vatIncluded: checked === true })}
+              />
+              <Label htmlFor="txVatIncluded" className="cursor-pointer">
+                부가세 포함 (금액에 10% VAT 추가)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
                 id="isCompleted"
                 checked={txForm.isCompleted}
-                onChange={(e) => setTxForm({ ...txForm, isCompleted: e.target.checked })}
-                className="h-4 w-4"
+                onCheckedChange={(checked) => setTxForm({ ...txForm, isCompleted: checked === true })}
               />
               <Label htmlFor="isCompleted" className="cursor-pointer">
                 완료됨 (체크 해제 시 예정으로 표시)

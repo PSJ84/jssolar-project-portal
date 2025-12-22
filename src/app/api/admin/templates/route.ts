@@ -39,6 +39,14 @@ export async function GET() {
       include: {
         children: {
           orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            sortOrder: true,
+            defaultAlertEnabled: true,
+            phase: true,
+          },
         },
       },
       orderBy: { sortOrder: "asc" },
@@ -81,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, defaultAlertEnabled } = body;
+    const { name, description, defaultAlertEnabled, phase } = body;
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
@@ -113,6 +121,7 @@ export async function POST(request: NextRequest) {
         organizationId,
         parentId: null,
         defaultAlertEnabled: defaultAlertEnabled ?? false,
+        phase: phase || "PERMIT",
       },
       include: {
         children: true,

@@ -711,7 +711,8 @@ model BudgetItem {
 
   type          BudgetType        // INCOME / EXPENSE
   category      String            // "도급계약", "구조물자재", "전기공사" 등
-  plannedAmount Int               // 계획 금액
+  plannedAmount Int               // 계획 금액 (공급가액)
+  vatIncluded   Boolean  @default(false)  // 부가세 포함 여부
   memo          String?           // 메모
   sortOrder     Int      @default(0)
 
@@ -731,7 +732,8 @@ model BudgetTransaction {
 
   date          DateTime          // 거래일
   description   String            // "계약금", "중도금", "잔금", "추가비용" 등
-  amount        Int               // 금액
+  amount        Int               // 금액 (공급가액, 음수 가능 - 환불/조정)
+  vatIncluded   Boolean  @default(false)  // 부가세 포함 여부
   isCompleted   Boolean  @default(true)  // 완료=true, 예정=false
 
   createdAt     DateTime @default(now())

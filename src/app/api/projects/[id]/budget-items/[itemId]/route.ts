@@ -15,7 +15,7 @@ export async function PATCH(
 
     const { id: projectId, itemId } = await params;
     const body = await request.json();
-    const { type, category, plannedAmount, memo, sortOrder } = body;
+    const { type, category, plannedAmount, memo, sortOrder, vatIncluded } = body;
 
     // 품목 존재 및 프로젝트 확인
     const existing = await prisma.budgetItem.findFirst({
@@ -32,6 +32,7 @@ export async function PATCH(
         ...(type !== undefined && { type }),
         ...(category !== undefined && { category }),
         ...(plannedAmount !== undefined && { plannedAmount }),
+        ...(vatIncluded !== undefined && { vatIncluded }),
         ...(memo !== undefined && { memo }),
         ...(sortOrder !== undefined && { sortOrder }),
       },

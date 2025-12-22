@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const body = await request.json();
-    const { name, description, sortOrder, defaultAlertEnabled } = body;
+    const { name, description, sortOrder, defaultAlertEnabled, phase } = body;
 
     // 템플릿 존재 확인
     const existing = await prisma.taskTemplate.findFirst({
@@ -117,6 +117,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       description?: string | null;
       sortOrder?: number;
       defaultAlertEnabled?: boolean;
+      phase?: "PERMIT" | "CONSTRUCTION" | "OTHER";
     } = {};
 
     if (name !== undefined) {
@@ -145,6 +146,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (defaultAlertEnabled !== undefined) {
       updateData.defaultAlertEnabled = !!defaultAlertEnabled;
+    }
+
+    if (phase !== undefined) {
+      const validPhases = ["PERMIT", "CONSTRUCTION", "OTHER"];
+      if (validPhases.includes(phase)) {
+        updateData.phase = phase;
+      }
     }
 
     // 업데이트 실행

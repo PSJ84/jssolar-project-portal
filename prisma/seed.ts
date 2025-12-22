@@ -1,4 +1,4 @@
-import { PrismaClient, TaskType, TaskStatus, Plan, Feature } from '@prisma/client';
+import { PrismaClient, TaskType, TaskStatus, Plan, Feature, TaskPhase } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -409,19 +409,25 @@ async function main() {
 
   if (!existingTemplate) {
     // 시스템 기본 템플릿 생성
-    const templates = [
-      { name: '도급계약', sortOrder: 0, isPermitTask: false, processingDays: null },
-      { name: '발전사업허가', sortOrder: 1, isPermitTask: true, processingDays: 14 },
-      { name: '개발행위허가', sortOrder: 2, isPermitTask: true, processingDays: 14 },
-      { name: 'PPA신청', sortOrder: 3, isPermitTask: true, processingDays: 7 },
-      { name: '공사계획신고', sortOrder: 4, isPermitTask: true, processingDays: 14 },
-      { name: '구조물공사', sortOrder: 5, isPermitTask: false, processingDays: null },
-      { name: '전기공사', sortOrder: 6, isPermitTask: false, processingDays: null },
-      { name: '사용전검사', sortOrder: 7, isPermitTask: true, processingDays: 7 },
-      { name: '개발행위준공', sortOrder: 8, isPermitTask: true, processingDays: 7 },
-      { name: 'PPA계약', sortOrder: 9, isPermitTask: false, processingDays: null },
-      { name: '사업개시신고', sortOrder: 10, isPermitTask: true, processingDays: 7 },
-      { name: '설비확인등록', sortOrder: 11, isPermitTask: true, processingDays: 14 },
+    const templates: {
+      name: string;
+      sortOrder: number;
+      isPermitTask: boolean;
+      processingDays: number | null;
+      phase: TaskPhase;
+    }[] = [
+      { name: '도급계약', sortOrder: 0, isPermitTask: false, processingDays: null, phase: 'OTHER' },
+      { name: '발전사업허가', sortOrder: 1, isPermitTask: true, processingDays: 14, phase: 'PERMIT' },
+      { name: '개발행위허가', sortOrder: 2, isPermitTask: true, processingDays: 14, phase: 'PERMIT' },
+      { name: 'PPA신청', sortOrder: 3, isPermitTask: true, processingDays: 7, phase: 'PERMIT' },
+      { name: '공사계획신고', sortOrder: 4, isPermitTask: true, processingDays: 14, phase: 'PERMIT' },
+      { name: '구조물공사', sortOrder: 5, isPermitTask: false, processingDays: null, phase: 'CONSTRUCTION' },
+      { name: '전기공사', sortOrder: 6, isPermitTask: false, processingDays: null, phase: 'CONSTRUCTION' },
+      { name: '사용전검사', sortOrder: 7, isPermitTask: true, processingDays: 7, phase: 'PERMIT' },
+      { name: '개발행위준공', sortOrder: 8, isPermitTask: true, processingDays: 7, phase: 'PERMIT' },
+      { name: 'PPA계약', sortOrder: 9, isPermitTask: false, processingDays: null, phase: 'OTHER' },
+      { name: '사업개시신고', sortOrder: 10, isPermitTask: true, processingDays: 7, phase: 'PERMIT' },
+      { name: '설비확인등록', sortOrder: 11, isPermitTask: true, processingDays: 14, phase: 'PERMIT' },
     ];
 
     for (const template of templates) {
@@ -432,6 +438,7 @@ async function main() {
           isSystem: true,
           isPermitTask: template.isPermitTask,
           processingDays: template.processingDays,
+          phase: template.phase,
         },
       });
 

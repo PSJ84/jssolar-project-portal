@@ -48,7 +48,7 @@ export async function POST(
 
     const { id: projectId } = await params;
     const body = await request.json();
-    const { type, category, plannedAmount, memo } = body;
+    const { type, category, plannedAmount, memo, vatIncluded = false } = body;
 
     if (!type || !category || plannedAmount === undefined) {
       return NextResponse.json(
@@ -79,6 +79,7 @@ export async function POST(
         type,
         category,
         plannedAmount,
+        vatIncluded,
         memo,
         sortOrder,
       },

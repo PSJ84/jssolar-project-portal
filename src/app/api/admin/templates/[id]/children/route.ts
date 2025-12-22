@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { id: parentId } = await params;
     const body = await request.json();
-    const { name, description, defaultAlertEnabled } = body;
+    const { name, description, defaultAlertEnabled, phase } = body;
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         organizationId,
         parentId,
         defaultAlertEnabled: defaultAlertEnabled ?? false,
+        phase: phase || "PERMIT",
       },
     });
 
@@ -123,7 +124,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const { id: parentId } = await params;
     const body = await request.json();
-    const { childId, name, description, sortOrder, defaultAlertEnabled } = body;
+    const { childId, name, description, sortOrder, defaultAlertEnabled, phase } = body;
 
     if (!childId) {
       return NextResponse.json(
@@ -155,6 +156,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       description?: string | null;
       sortOrder?: number;
       defaultAlertEnabled?: boolean;
+      phase?: "PERMIT" | "CONSTRUCTION" | "OTHER";
     } = {};
 
     if (name !== undefined) {
@@ -183,6 +185,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (defaultAlertEnabled !== undefined) {
       updateData.defaultAlertEnabled = !!defaultAlertEnabled;
+    }
+
+    if (phase !== undefined) {
+      const validPhases = ["PERMIT", "CONSTRUCTION", "OTHER"];
+      if (validPhases.includes(phase)) {
+        updateData.phase = phase;
+      }
     }
 
     // 업데이트 실행

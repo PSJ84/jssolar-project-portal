@@ -15,6 +15,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -47,14 +54,23 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type TaskPhase = "PERMIT" | "CONSTRUCTION" | "OTHER";
+
 interface TaskTemplate {
   id: string;
   name: string;
   description: string | null;
   sortOrder: number;
   defaultAlertEnabled: boolean;
+  phase: TaskPhase;
   children: TaskTemplate[];
 }
+
+const PHASE_OPTIONS: { value: TaskPhase; label: string; color: string }[] = [
+  { value: "PERMIT", label: "인허가", color: "bg-gray-100 text-gray-700" },
+  { value: "CONSTRUCTION", label: "시공", color: "bg-orange-100 text-orange-700" },
+  { value: "OTHER", label: "기타", color: "bg-gray-100 text-gray-600" },
+];
 
 export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
@@ -72,6 +88,7 @@ export default function AdminTemplatesPage() {
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formAlertEnabled, setFormAlertEnabled] = useState(false);
+  const [formPhase, setFormPhase] = useState<TaskPhase>("PERMIT");
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -114,6 +131,7 @@ export default function AdminTemplatesPage() {
     setFormName("");
     setFormDescription("");
     setFormAlertEnabled(false);
+    setFormPhase("PERMIT");
     setSelectedParentId(null);
     setSelectedTemplate(null);
     setSelectedChildId(null);
@@ -162,6 +180,7 @@ export default function AdminTemplatesPage() {
           name: formName.trim(),
           description: formDescription.trim() || null,
           defaultAlertEnabled: formAlertEnabled,
+          phase: formPhase,
         }),
       });
 
@@ -198,6 +217,7 @@ export default function AdminTemplatesPage() {
           name: formName.trim(),
           description: formDescription.trim() || null,
           defaultAlertEnabled: formAlertEnabled,
+          phase: formPhase,
         }),
       });
 
@@ -237,6 +257,7 @@ export default function AdminTemplatesPage() {
             name: formName.trim(),
             description: formDescription.trim() || null,
             defaultAlertEnabled: formAlertEnabled,
+            phase: formPhase,
           }),
         });
 
@@ -253,6 +274,7 @@ export default function AdminTemplatesPage() {
             name: formName.trim(),
             description: formDescription.trim() || null,
             defaultAlertEnabled: formAlertEnabled,
+            phase: formPhase,
           }),
         });
 
@@ -327,6 +349,7 @@ export default function AdminTemplatesPage() {
     setFormName(template.name);
     setFormDescription(template.description || "");
     setFormAlertEnabled(template.defaultAlertEnabled);
+    setFormPhase(template.phase || "PERMIT");
     setIsEditOpen(true);
   };
 
@@ -432,6 +455,24 @@ export default function AdminTemplatesPage() {
                   <Label htmlFor="alertEnabled" className="cursor-pointer">
                     기본 알림 활성화
                   </Label>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phase">진행률 가중치 구분</Label>
+                  <Select value={formPhase} onValueChange={(v) => setFormPhase(v as TaskPhase)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="구분 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PHASE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label} {opt.value === "CONSTRUCTION" && "(60% 가중치)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    시공 단계는 진행률 계산 시 60% 가중치가 적용됩니다.
+                  </p>
                 </div>
               </div>
               <DialogFooter>
@@ -540,6 +581,16 @@ export default function AdminTemplatesPage() {
 
                   <span className="font-medium flex-1">{template.name}</span>
 
+                  {/* Phase 배지 */}
+                  {(() => {
+                    const phaseOption = PHASE_OPTIONS.find((p) => p.value === template.phase);
+                    return phaseOption ? (
+                      <Badge variant="outline" className={cn("text-xs", phaseOption.color)}>
+                        {phaseOption.label}
+                      </Badge>
+                    ) : null;
+                  })()}
+
                   <span className="text-sm text-muted-foreground">
                     {template.children.length}개 하위 단계
                   </span>
@@ -597,6 +648,15 @@ export default function AdminTemplatesPage() {
                           {index === template.children.length - 1 ? "└" : "├"}
                         </span>
                         <span className="flex-1 text-sm">{child.name}</span>
+                        {/* Phase 배지 */}
+                        {(() => {
+                          const phaseOption = PHASE_OPTIONS.find((p) => p.value === child.phase);
+                          return phaseOption ? (
+                            <Badge variant="outline" className={cn("text-xs", phaseOption.color)}>
+                              {phaseOption.label}
+                            </Badge>
+                          ) : null;
+                        })()}
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -670,6 +730,21 @@ export default function AdminTemplatesPage() {
                 기본 알림 활성화
               </Label>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="childPhase">진행률 가중치 구분</Label>
+              <Select value={formPhase} onValueChange={(v) => setFormPhase(v as TaskPhase)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="구분 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHASE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label} {opt.value === "CONSTRUCTION" && "(60% 가중치)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -727,6 +802,21 @@ export default function AdminTemplatesPage() {
               <Label htmlFor="editAlertEnabled" className="cursor-pointer">
                 기본 알림 활성화
               </Label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPhase">진행률 가중치 구분</Label>
+              <Select value={formPhase} onValueChange={(v) => setFormPhase(v as TaskPhase)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="구분 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHASE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label} {opt.value === "CONSTRUCTION" && "(60% 가중치)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

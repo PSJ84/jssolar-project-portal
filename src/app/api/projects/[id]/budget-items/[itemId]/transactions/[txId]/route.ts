@@ -15,7 +15,7 @@ export async function PATCH(
 
     const { itemId, txId } = await params;
     const body = await request.json();
-    const { date, description, amount, isCompleted } = body;
+    const { date, description, amount, isCompleted, vatIncluded } = body;
 
     // 거래 내역 존재 확인
     const existing = await prisma.budgetTransaction.findFirst({
@@ -31,7 +31,8 @@ export async function PATCH(
       data: {
         ...(date !== undefined && { date: new Date(date) }),
         ...(description !== undefined && { description }),
-        ...(amount !== undefined && { amount }),
+        ...(amount !== undefined && { amount }), // 음수 허용
+        ...(vatIncluded !== undefined && { vatIncluded }),
         ...(isCompleted !== undefined && { isCompleted }),
       },
     });

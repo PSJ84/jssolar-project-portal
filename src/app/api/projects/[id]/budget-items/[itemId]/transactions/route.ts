@@ -43,7 +43,7 @@ export async function POST(
 
     const { id: projectId, itemId } = await params;
     const body = await request.json();
-    const { date, description, amount, isCompleted = true } = body;
+    const { date, description, amount, isCompleted = true, vatIncluded = false } = body;
 
     if (!date || !description || amount === undefined) {
       return NextResponse.json(
@@ -66,7 +66,8 @@ export async function POST(
         budgetItemId: itemId,
         date: new Date(date),
         description,
-        amount,
+        amount, // 음수 허용 (환불/조정)
+        vatIncluded,
         isCompleted,
       },
     });
