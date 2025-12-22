@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { DashboardTaskList } from "./DashboardTaskList";
+import { DashboardTodoList } from "./DashboardTodoList";
+import { TodoPriority } from "@prisma/client";
 
 interface DashboardTask {
   id: string;
@@ -21,6 +23,15 @@ interface DashboardTask {
   assigneeId: string | null;
   project: { id: string; name: string };
   parent: { id: string; name: string } | null;
+}
+
+interface DashboardTodo {
+  id: string;
+  title: string;
+  dueDate: string | null;
+  priority: TodoPriority;
+  assigneeId: string | null;
+  project: { id: string; name: string };
 }
 
 interface ProjectProgress {
@@ -42,6 +53,7 @@ interface DashboardContentProps {
   userName: string;
   currentUserId: string;
   alertTasks: DashboardTask[];
+  alertTodos: DashboardTodo[];
   projectsWithProgress: ProjectProgress[];
   kpiData: KpiData;
 }
@@ -60,6 +72,7 @@ export function DashboardContent({
   userName,
   currentUserId,
   alertTasks,
+  alertTodos,
   projectsWithProgress,
   kpiData,
 }: DashboardContentProps) {
@@ -156,6 +169,9 @@ export function DashboardContent({
 
       {/* 기존 태스크 목록 */}
       <DashboardTaskList tasks={alertTasks} currentUserId={currentUserId} />
+
+      {/* 할 일 목록 */}
+      <DashboardTodoList todos={alertTodos} currentUserId={currentUserId} />
     </div>
   );
 }

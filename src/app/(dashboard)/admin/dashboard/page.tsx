@@ -99,6 +99,31 @@ export default async function AdminDashboardPage() {
     completedThisWeek,
   };
 
+  // 4. 할 일 목록 (기한 있거나 우선순위 높은 것)
+  const alertTodos = await prisma.todo.findMany({
+    where: {
+      project: { organizationId, status: "ACTIVE" },
+      completedDate: null,
+      OR: [
+        { dueDate: { not: null } },
+        { priority: "HIGH" },
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      dueDate: true,
+      priority: true,
+      assigneeId: true,
+      project: { select: { id: true, name: true } },
+    },
+    orderBy: [
+      { priority: "asc" }, // HIGH first
+      { dueDate: "asc" },
+    ],
+    take: 20,
+  });
+
   // 날짜를 문자열로 변환
   const formattedTasks = alertTasks.map((task) => ({
     id: task.id,
@@ -110,11 +135,21 @@ export default async function AdminDashboardPage() {
     parent: task.parent,
   }));
 
+  const formattedTodos = alertTodos.map((todo) => ({
+    id: todo.id,
+    title: todo.title,
+    dueDate: todo.dueDate?.toISOString() ?? null,
+    priority: todo.priority,
+    assigneeId: todo.assigneeId,
+    project: todo.project,
+  }));
+
   return (
     <DashboardContent
       userName={session.user.name || "관리자"}
       currentUserId={session.user.id}
       alertTasks={formattedTasks}
+      alertTodos={formattedTodos}
       projectsWithProgress={projectsWithProgress}
       kpiData={kpiData}
     />
