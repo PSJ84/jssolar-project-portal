@@ -18,6 +18,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -722,6 +723,9 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingItem ? "품목 수정" : "품목 추가"}</DialogTitle>
+            <DialogDescription>
+              {editingItem ? "예산 품목 정보를 수정합니다." : "새로운 예산 품목을 추가합니다."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -793,6 +797,9 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
               {editingTx?.tx ? "거래 내역 수정" : "거래 내역 추가"}
               {editingTx && <span className="text-sm font-normal text-muted-foreground ml-2">({editingTx.item.category})</span>}
             </DialogTitle>
+            <DialogDescription>
+              {editingTx?.tx ? "거래 내역 정보를 수정합니다." : "새로운 거래 내역을 추가합니다."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

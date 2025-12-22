@@ -48,11 +48,29 @@ export async function POST(
 
     const { id: projectId } = await params;
     const body = await request.json();
-    const { type, category, plannedAmount, memo, vatIncluded = false } = body;
 
-    if (!type || !category || plannedAmount === undefined) {
+    console.log("=== Budget Item Create Debug ===");
+    console.log("Body:", JSON.stringify(body, null, 2));
+
+    // 타입 안전하게 변환
+    const type = body.type as "INCOME" | "EXPENSE";
+    const category = body.category || "";
+    const plannedAmount = typeof body.plannedAmount === "string"
+      ? parseInt(body.plannedAmount, 10)
+      : (body.plannedAmount || 0);
+    const vatIncluded = body.vatIncluded === true;
+    const memo = body.memo || null;
+
+    if (!type || !["INCOME", "EXPENSE"].includes(type)) {
       return NextResponse.json(
-        { error: "type, category, plannedAmount are required" },
+        { error: "type must be INCOME or EXPENSE" },
+        { status: 400 }
+      );
+    }
+
+    if (!category) {
+      return NextResponse.json(
+        { error: "category is required" },
         { status: 400 }
       );
     }
@@ -73,6 +91,8 @@ export async function POST(
     });
     const sortOrder = (maxSortOrder._max.sortOrder ?? -1) + 1;
 
+    console.log("Creating budget item:", { projectId, type, category, plannedAmount, vatIncluded, memo, sortOrder });
+
     const budgetItem = await prisma.budgetItem.create({
       data: {
         projectId,
@@ -88,9 +108,11 @@ export async function POST(
       },
     });
 
+    console.log("Budget item created:", budgetItem.id);
     return NextResponse.json(budgetItem, { status: 201 });
   } catch (error) {
-    console.error("Error creating budget item:", error);
+    console.error("=== Budget Item Create Error ===");
+    console.error("Error:", error);
     return NextResponse.json(
       { error: "Failed to create budget item" },
       { status: 500 }
