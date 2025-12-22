@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
+import { UserRole, TaskPhase } from "@prisma/client";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -75,7 +75,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const body = await request.json();
-    const { name, description, sortOrder, defaultAlertEnabled } = body;
+    const { name, description, sortOrder, defaultAlertEnabled, phase } = body;
 
     // 템플릿 존재 확인
     const existing = await prisma.taskTemplate.findFirst({
@@ -99,6 +99,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       description?: string | null;
       sortOrder?: number;
       defaultAlertEnabled?: boolean;
+      phase?: TaskPhase;
     } = {};
 
     if (name !== undefined) {
@@ -127,6 +128,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (defaultAlertEnabled !== undefined) {
       updateData.defaultAlertEnabled = !!defaultAlertEnabled;
+    }
+
+    if (phase && Object.values(TaskPhase).includes(phase)) {
+      updateData.phase = phase as TaskPhase;
     }
 
     // 업데이트 실행

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, defaultAlertEnabled } = body;
+    const { name, description, defaultAlertEnabled, phase } = body;
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         organizationId: null,
         parentId: null,
         defaultAlertEnabled: defaultAlertEnabled ?? false,
+        phase: phase || null,
       },
       include: {
         children: true,

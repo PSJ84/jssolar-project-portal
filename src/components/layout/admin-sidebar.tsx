@@ -58,7 +58,7 @@ export function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
   };
 
   return (
-    <div className="hidden md:flex w-64 bg-white border-r min-h-screen flex-col">
+    <div className="hidden md:flex md:fixed md:left-0 md:top-0 w-64 h-screen bg-white border-r flex-col overflow-y-auto z-40">
       {/* Logo */}
       <div className="p-6">
         <div className="flex items-center gap-2">

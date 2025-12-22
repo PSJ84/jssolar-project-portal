@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
+import { UserRole, TaskPhase } from "@prisma/client";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { id: parentId } = await params;
     const body = await request.json();
-    const { name, description, defaultAlertEnabled } = body;
+    const { name, description, defaultAlertEnabled, phase } = body;
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         organizationId: null,
         parentId,
         defaultAlertEnabled: defaultAlertEnabled ?? false,
+        phase: phase || null,
       },
     });
 
@@ -105,7 +106,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const { id: parentId } = await params;
     const body = await request.json();
-    const { childId, name, description, sortOrder, defaultAlertEnabled } = body;
+    const { childId, name, description, sortOrder, defaultAlertEnabled, phase } = body;
 
     if (!childId) {
       return NextResponse.json(
@@ -137,6 +138,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       description?: string | null;
       sortOrder?: number;
       defaultAlertEnabled?: boolean;
+      phase?: TaskPhase;
     } = {};
 
     if (name !== undefined) {
@@ -165,6 +167,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (defaultAlertEnabled !== undefined) {
       updateData.defaultAlertEnabled = !!defaultAlertEnabled;
+    }
+
+    if (phase && Object.values(TaskPhase).includes(phase)) {
+      updateData.phase = phase as TaskPhase;
     }
 
     // 업데이트 실행

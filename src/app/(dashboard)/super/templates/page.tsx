@@ -32,6 +32,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -86,9 +93,16 @@ interface TaskTemplate {
   defaultAlertEnabled: boolean;
   isPermitTask: boolean;
   processingDays: number | null;
+  phase: "PERMIT" | "CONSTRUCTION" | "OTHER" | null;
   children: TaskTemplate[];
   checklistTemplates?: ChecklistTemplate[];
 }
+
+const PHASE_OPTIONS = [
+  { value: "PERMIT", label: "인허가", color: "text-blue-600" },
+  { value: "CONSTRUCTION", label: "시공 (60% 가중치)", color: "text-orange-600" },
+  { value: "OTHER", label: "기타", color: "text-gray-600" },
+] as const;
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
@@ -106,6 +120,7 @@ export default function TemplatesPage() {
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formAlertEnabled, setFormAlertEnabled] = useState(false);
+  const [formPhase, setFormPhase] = useState<"PERMIT" | "CONSTRUCTION" | "OTHER" | "">("");
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -156,6 +171,7 @@ export default function TemplatesPage() {
     setFormName("");
     setFormDescription("");
     setFormAlertEnabled(false);
+    setFormPhase("");
     setSelectedParentId(null);
     setSelectedTemplate(null);
     setSelectedChildId(null);
@@ -234,6 +250,7 @@ export default function TemplatesPage() {
           name: formName.trim(),
           description: formDescription.trim() || null,
           defaultAlertEnabled: formAlertEnabled,
+          phase: formPhase || null,
         }),
       });
 
@@ -270,6 +287,7 @@ export default function TemplatesPage() {
           name: formName.trim(),
           description: formDescription.trim() || null,
           defaultAlertEnabled: formAlertEnabled,
+          phase: formPhase || null,
         }),
       });
 
@@ -309,6 +327,7 @@ export default function TemplatesPage() {
             name: formName.trim(),
             description: formDescription.trim() || null,
             defaultAlertEnabled: formAlertEnabled,
+            phase: formPhase || null,
           }),
         });
 
@@ -325,6 +344,7 @@ export default function TemplatesPage() {
             name: formName.trim(),
             description: formDescription.trim() || null,
             defaultAlertEnabled: formAlertEnabled,
+            phase: formPhase || null,
           }),
         });
 
@@ -399,6 +419,7 @@ export default function TemplatesPage() {
     setFormName(template.name);
     setFormDescription(template.description || "");
     setFormAlertEnabled(template.defaultAlertEnabled);
+    setFormPhase(template.phase || "");
     setIsEditOpen(true);
   };
 
@@ -475,6 +496,21 @@ export default function TemplatesPage() {
                 <Label htmlFor="alertEnabled" className="cursor-pointer">
                   기본 알림 활성화
                 </Label>
+              </div>
+              <div className="space-y-2">
+                <Label>단계 속성</Label>
+                <Select value={formPhase} onValueChange={(v) => setFormPhase(v as typeof formPhase)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="단계 속성 선택 (선택사항)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PHASE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className={option.color}>{option.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
@@ -600,6 +636,21 @@ export default function TemplatesPage() {
                 기본 알림 활성화
               </Label>
             </div>
+            <div className="space-y-2">
+              <Label>단계 속성</Label>
+              <Select value={formPhase} onValueChange={(v) => setFormPhase(v as typeof formPhase)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="단계 속성 선택 (선택사항)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHASE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span className={option.color}>{option.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -657,6 +708,21 @@ export default function TemplatesPage() {
               <Label htmlFor="editAlertEnabled" className="cursor-pointer">
                 기본 알림 활성화
               </Label>
+            </div>
+            <div className="space-y-2">
+              <Label>단계 속성</Label>
+              <Select value={formPhase} onValueChange={(v) => setFormPhase(v as typeof formPhase)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="단계 속성 선택 (선택사항)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHASE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span className={option.color}>{option.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
