@@ -105,7 +105,7 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
   const [formDescription, setFormDescription] = useState("");
   const [formDueDate, setFormDueDate] = useState<Date | undefined>(undefined);
   const [formPriority, setFormPriority] = useState<TodoPriority>("MEDIUM");
-  const [formAssigneeId, setFormAssigneeId] = useState<string>("");
+  const [formAssigneeId, setFormAssigneeId] = useState<string>("__none__");
 
   // 할 일 목록 조회
   const fetchTodos = async () => {
@@ -161,7 +161,7 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
     setFormDescription("");
     setFormDueDate(undefined);
     setFormPriority("MEDIUM");
-    setFormAssigneeId("");
+    setFormAssigneeId("__none__");
   };
 
   // 할 일 추가
@@ -181,7 +181,7 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
           description: formDescription.trim() || null,
           dueDate: formDueDate?.toISOString() || null,
           priority: formPriority,
-          assigneeId: formAssigneeId || null,
+          assigneeId: formAssigneeId === "__none__" ? null : formAssigneeId,
         }),
       });
 
@@ -219,7 +219,7 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
             description: formDescription.trim() || null,
             dueDate: formDueDate?.toISOString() || null,
             priority: formPriority,
-            assigneeId: formAssigneeId || null,
+            assigneeId: formAssigneeId === "__none__" ? null : formAssigneeId,
           }),
         }
       );
@@ -305,7 +305,7 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
     setFormDescription(todo.description || "");
     setFormDueDate(todo.dueDate ? new Date(todo.dueDate) : undefined);
     setFormPriority(todo.priority);
-    setFormAssigneeId(todo.assignee?.id || "");
+    setFormAssigneeId(todo.assignee?.id || "__none__");
   };
 
   if (loading) {
@@ -419,7 +419,7 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
                             <SelectValue placeholder="담당자 선택" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">미지정</SelectItem>
+                            <SelectItem value="__none__">미지정</SelectItem>
                             {members.map((m) => (
                               <SelectItem key={m.id} value={m.id}>
                                 {m.name || "이름 없음"}
@@ -674,7 +674,7 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
                     <SelectValue placeholder="담당자 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">미지정</SelectItem>
+                    <SelectItem value="__none__">미지정</SelectItem>
                     {members.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {m.name || "이름 없음"}
