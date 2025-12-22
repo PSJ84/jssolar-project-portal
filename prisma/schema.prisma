@@ -25,9 +25,8 @@ model Organization {
   taskTemplates  TaskTemplate[]
   quotations     Quotation[]
 
-  // v2.5: 지식노트, 회사 할일
+  // v2.5: 지식노트
   knowledgeNotes KnowledgeNote[]
-  companyTodos   CompanyTodo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -71,10 +70,8 @@ model User {
   // Quotation relations
   createdQuotations         Quotation[]
 
-  // v2.5: 지식노트, 회사 할일
+  // v2.5: 지식노트
   knowledgeNotes            KnowledgeNote[]
-  assignedCompanyTodos      CompanyTodo[] @relation("CompanyTodoAssignee")
-  createdCompanyTodos       CompanyTodo[] @relation("CompanyTodoCreator")
 
   createdAt                 DateTime    @default(now())
   updatedAt          DateTime          @updatedAt
@@ -673,14 +670,6 @@ enum BudgetCategory {
   OTHER         // 기타
 }
 
-// 회사 할일 카테고리
-enum CompanyTodoCategory {
-  ADMIN         // 행정
-  FINANCE       // 재무
-  SALES         // 영업
-  HR            // 인사
-  OTHER         // 기타
-}
 
 // 지식노트
 model KnowledgeNote {
@@ -704,31 +693,6 @@ model KnowledgeNote {
   @@index([organizationId, isPinned])
 }
 
-// 회사 할일 (프로젝트 무관)
-model CompanyTodo {
-  id            String              @id @default(cuid())
-  title         String
-  description   String?             @db.Text
-  dueDate       DateTime?
-  priority      TodoPriority        @default(MEDIUM)
-  completedDate DateTime?
-  category      CompanyTodoCategory @default(OTHER)
-
-  organizationId String
-  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  assigneeId     String?
-  assignee       User?               @relation("CompanyTodoAssignee", fields: [assigneeId], references: [id])
-
-  createdById    String
-  createdBy      User                @relation("CompanyTodoCreator", fields: [createdById], references: [id])
-
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-
-  @@index([organizationId, completedDate])
-  @@index([assigneeId, completedDate])
-}
 
 // 프로젝트 예산
 model Budget {

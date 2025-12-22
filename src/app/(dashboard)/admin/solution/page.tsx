@@ -14,18 +14,20 @@ import {
   Pin,
   Calendar,
   AlertCircle,
+  FolderKanban,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
+import { getDday } from "@/lib/date-utils";
 
-interface CompanyTodo {
+interface Todo {
   id: string;
   title: string;
   dueDate: string | null;
   priority: string;
-  category: string;
   completedDate: string | null;
+  project: { id: string; name: string };
 }
 
 interface KnowledgeNote {
@@ -52,7 +54,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function SolutionHubPage() {
-  const [todos, setTodos] = useState<CompanyTodo[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [notes, setNotes] = useState<KnowledgeNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,13 +63,13 @@ export default function SolutionHubPage() {
       setIsLoading(true);
       try {
         const [todosRes, notesRes] = await Promise.all([
-          fetch("/api/company-todos?completed=false&limit=5"),
+          fetch("/api/admin/todos?completed=false&limit=5"),
           fetch("/api/knowledge?pinned=true&limit=5"),
         ]);
 
         if (todosRes.ok) {
           const todosData = await todosRes.json();
-          setTodos(todosData);
+          setTodos(todosData.todos || []);
         }
 
         if (notesRes.ok) {
@@ -86,7 +88,7 @@ export default function SolutionHubPage() {
 
   const handleToggleTodo = async (id: string) => {
     try {
-      const res = await fetch(`/api/company-todos/${id}`, {
+      const res = await fetch(`/api/admin/todos/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toggleComplete: true }),
@@ -101,14 +103,10 @@ export default function SolutionHubPage() {
     }
   };
 
-  const isOverdue = (dueDate: string | null) => {
-    if (!dueDate) return false;
-    return new Date(dueDate) < new Date();
-  };
-
-  const urgentTodos = todos.filter(
-    (t) => t.priority === "HIGH" || isOverdue(t.dueDate)
-  );
+  const urgentTodos = todos.filter((t) => {
+    const dday = getDday(t.dueDate);
+    return t.priority === "HIGH" || (dday && dday.days <= 0);
+  });
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -165,12 +163,12 @@ export default function SolutionHubPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Company Todos */}
+        {/* Todos */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <CheckSquare className="h-5 w-5" />
-              회사 할 일
+              전체 할 일
             </CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/admin/solution/company-todos">
@@ -190,41 +188,49 @@ export default function SolutionHubPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {todos.slice(0, 5).map((todo) => (
-                  <div
-                    key={todo.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
-                  >
-                    <Checkbox
-                      checked={false}
-                      onCheckedChange={() => handleToggleTodo(todo.id)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{todo.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge
-                          className={`text-xs ${PRIORITY_COLORS[todo.priority]}`}
-                        >
-                          {todo.priority === "HIGH"
-                            ? "높음"
-                            : todo.priority === "MEDIUM"
-                            ? "보통"
-                            : "낮음"}
-                        </Badge>
-                        {todo.dueDate && (
-                          <span
-                            className={`text-xs flex items-center gap-1 ${
-                              isOverdue(todo.dueDate) ? "text-red-500" : "text-muted-foreground"
-                            }`}
+                {todos.slice(0, 5).map((todo) => {
+                  const dday = getDday(todo.dueDate);
+                  return (
+                    <div
+                      key={todo.id}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={false}
+                        onCheckedChange={() => handleToggleTodo(todo.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{todo.title}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            <FolderKanban className="h-3 w-3 mr-1" />
+                            {todo.project.name}
+                          </Badge>
+                          <Badge
+                            className={`text-xs ${PRIORITY_COLORS[todo.priority]}`}
                           >
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(todo.dueDate), "M/d", { locale: ko })}
-                          </span>
-                        )}
+                            {todo.priority === "HIGH"
+                              ? "높음"
+                              : todo.priority === "MEDIUM"
+                              ? "보통"
+                              : "낮음"}
+                          </Badge>
+                          {dday && (
+                            <Badge variant={dday.variant} className="text-xs">
+                              {dday.label}
+                            </Badge>
+                          )}
+                          {todo.dueDate && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(todo.dueDate), "M/d", { locale: ko })}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -294,7 +300,7 @@ export default function SolutionHubPage() {
                 className="flex flex-col items-center gap-2"
               >
                 <CheckSquare className="h-8 w-8" />
-                <span>회사 할 일 관리</span>
+                <span>전체 할 일 관리</span>
               </Link>
             </Button>
             <Button variant="outline" className="h-auto py-4" asChild>
@@ -308,11 +314,11 @@ export default function SolutionHubPage() {
             </Button>
             <Button variant="outline" className="h-auto py-4" asChild>
               <Link
-                href="/admin/projects"
+                href="/admin/solution/budget"
                 className="flex flex-col items-center gap-2"
               >
                 <DollarSign className="h-8 w-8" />
-                <span>프로젝트 예산 관리</span>
+                <span>예산 현황</span>
               </Link>
             </Button>
           </div>

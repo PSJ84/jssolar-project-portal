@@ -47,7 +47,7 @@ const adminNavigation = [
 
 const solutionNavigation = [
   { name: "통합 솔루션", href: "/admin/solution", icon: Lightbulb },
-  { name: "회사 할 일", href: "/admin/solution/company-todos", icon: CheckSquare },
+  { name: "전체 할 일", href: "/admin/solution/company-todos", icon: CheckSquare },
   { name: "지식노트", href: "/admin/solution/knowledge", icon: BookOpen },
   { name: "예산 현황", href: "/admin/solution/budget", icon: DollarSign },
 ];
