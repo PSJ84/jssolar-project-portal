@@ -494,6 +494,53 @@ export function TaskDetailSheet({
     }
   };
 
+  // 체크리스트 일괄 상태 변경
+  const handleBatchUpdate = async (action: "COMPLETED" | "PENDING") => {
+    if (!task) return;
+
+    const prevChecklists = [...task.checklists];
+
+    // 낙관적 업데이트
+    setTask((prev) =>
+      prev
+        ? {
+            ...prev,
+            checklists: prev.checklists.map((c) => ({
+              ...c,
+              status: action,
+            })),
+          }
+        : prev
+    );
+
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/tasks-v2/${taskId}/checklists/batch`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to batch update");
+
+      const data = await res.json();
+      toast.success(
+        action === "COMPLETED"
+          ? `${data.updatedCount}개 항목을 완료 처리했습니다.`
+          : `${data.updatedCount}개 항목을 대기 처리했습니다.`
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("일괄 처리에 실패했습니다.");
+      // 실패 시 롤백
+      setTask((prev) =>
+        prev ? { ...prev, checklists: prevChecklists } : prev
+      );
+    }
+  };
+
   // 템플릿에서 체크리스트 가져오기
   const handleImportFromTemplate = async () => {
     if (!task) return;
@@ -780,11 +827,33 @@ export function TaskDetailSheet({
                       Pro
                     </span>
                   )}
+                  {hasTaskDetailFeature && (
+                    <span className="text-xs text-muted-foreground">
+                      ({completedCount}/{task.checklists.length})
+                    </span>
+                  )}
                 </Label>
-                {hasTaskDetailFeature && (
-                  <span className="text-xs text-muted-foreground">
-                    {completedCount}/{task.checklists.length} 완료
-                  </span>
+                {hasTaskDetailFeature && isAdmin && task.checklists.length > 0 && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => handleBatchUpdate("COMPLETED")}
+                    >
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      전체 완료
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => handleBatchUpdate("PENDING")}
+                    >
+                      <Clock className="h-3 w-3 mr-1" />
+                      전체 대기
+                    </Button>
+                  </div>
                 )}
               </div>
 

@@ -33,8 +33,12 @@ const statusLabels: Record<ProjectStatus, string> = {
   ARCHIVED: "보관",
 };
 
+interface ProjectWithProgress extends Project {
+  calculatedProgress?: number;
+}
+
 interface ProjectTableProps {
-  projects: Project[];
+  projects: ProjectWithProgress[];
 }
 
 export function ProjectTable({ projects }: ProjectTableProps) {
@@ -102,7 +106,7 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                       ? `${project.capacityKw.toLocaleString()} kW`
                       : "-"}
                   </TableCell>
-                  <TableCell>{project.progressPercent}%</TableCell>
+                  <TableCell>{project.calculatedProgress ?? project.progressPercent}%</TableCell>
                   <TableCell>
                     <Badge
                       variant={

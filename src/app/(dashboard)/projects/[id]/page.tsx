@@ -115,6 +115,18 @@ async function getProject(id: string, userId: string) {
           },
           orderBy: { sortOrder: "asc" },
         },
+        // Todos - 미리 로드하여 탭 전환 시 로딩 최적화
+        todos: {
+          include: {
+            assignee: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, name: true } },
+            completedBy: { select: { id: true, name: true } },
+          },
+          orderBy: [
+            { completedDate: "asc" },
+            { dueDate: "asc" },
+          ],
+        },
       },
     });
     return project;
@@ -327,6 +339,19 @@ export default async function ClientProjectDetailPage({
           <TodoList
             projectId={project.id}
             isAdmin={false}
+            initialTodos={project.todos.map((todo) => ({
+              id: todo.id,
+              title: todo.title,
+              description: todo.description,
+              dueDate: todo.dueDate?.toISOString() ?? null,
+              priority: todo.priority,
+              assignee: todo.assignee,
+              createdBy: todo.createdBy,
+              completedBy: todo.completedBy,
+              completedDate: todo.completedDate?.toISOString() ?? null,
+              createdAt: todo.createdAt.toISOString(),
+              updatedAt: todo.updatedAt.toISOString(),
+            }))}
           />
         </TabsContent>
 

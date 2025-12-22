@@ -77,6 +77,7 @@ interface TodoListProps {
   projectId: string;
   isAdmin: boolean;
   members?: ProjectMember[];
+  initialTodos?: Todo[];
 }
 
 const priorityConfig: Record<
@@ -88,9 +89,9 @@ const priorityConfig: Record<
   LOW: { label: "낮음", color: "text-green-500", icon: "🟢" },
 };
 
-export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [loading, setLoading] = useState(true);
+export function TodoList({ projectId, isAdmin, members = [], initialTodos }: TodoListProps) {
+  const [todos, setTodos] = useState<Todo[]>(initialTodos || []);
+  const [loading, setLoading] = useState(!initialTodos);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -123,7 +124,10 @@ export function TodoList({ projectId, isAdmin, members = [] }: TodoListProps) {
   };
 
   useEffect(() => {
-    fetchTodos();
+    // initialTodos가 제공되면 fetch 건너뜀 (서버에서 이미 데이터 로드됨)
+    if (!initialTodos) {
+      fetchTodos();
+    }
   }, [projectId]);
 
   // 정렬된 할 일 목록

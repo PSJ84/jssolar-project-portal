@@ -4,6 +4,17 @@ import { ProjectTable } from "@/components/project/project-table";
 import { prisma } from "@/lib/prisma";
 import { Plus } from "lucide-react";
 
+// 진행률 계산 함수 (하위 태스크 기준, 활성화된 것만)
+function calculateProgress(tasks: { isActive: boolean; children: { isActive: boolean; completedDate: Date | null }[] }[]): number {
+  const activeTasks = tasks.filter(t => t.isActive);
+  const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
+
+  if (allChildTasks.length === 0) return 0;
+
+  const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
+  return Math.round((completedTasks / allChildTasks.length) * 100);
+}
+
 async function getProjects() {
   try {
     const projects = await prisma.project.findMany({
@@ -19,12 +30,30 @@ async function getProjects() {
             documents: true,
           },
         },
+        // 진행률 계산을 위한 태스크 조회
+        tasks: {
+          where: { parentId: null },
+          select: {
+            isActive: true,
+            children: {
+              select: {
+                isActive: true,
+                completedDate: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         updatedAt: "desc",
       },
     });
-    return projects;
+
+    // 진행률 계산하여 반환
+    return projects.map(project => ({
+      ...project,
+      calculatedProgress: calculateProgress(project.tasks),
+    }));
   } catch (error) {
     console.error("Error fetching projects:", error);
     return [];

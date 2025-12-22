@@ -56,6 +56,7 @@ interface ProjectWithOrg extends Project {
     members: number;
     documents: number;
   };
+  calculatedProgress?: number;
 }
 
 interface SuperProjectTableProps {

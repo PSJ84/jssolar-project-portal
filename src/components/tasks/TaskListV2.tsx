@@ -882,13 +882,13 @@ function MainTaskItem({
           </span>
         )}
 
-        {/* 숨김/보임 토글 - ADMIN만 */}
+        {/* 숨김/보임 토글 - ADMIN만, 데스크톱만 */}
         {isAdmin && (
           <Button
             variant="ghost"
             size="icon"
             className={cn(
-              "h-8 w-8 shrink-0",
+              "h-8 w-8 shrink-0 hidden md:flex",
               !task.isActive && "bg-muted"
             )}
             onClick={(e) => {
@@ -1028,17 +1028,12 @@ function ChildTaskItem({
     <div
       id={`task-${task.id}`}
       className={cn(
-        "flex items-center gap-2 px-3 py-2 pl-11 transition-all",
+        "flex items-center gap-2 px-3 py-2 pl-4 md:pl-8 transition-all",
         !isLast && "border-b border-dashed",
         (isHidden || isParentHidden) && "opacity-50 bg-muted/20",
         highlightTaskId === task.id && "ring-2 ring-primary ring-offset-2"
       )}
     >
-      {/* 트리 연결선 */}
-      <span className="text-muted-foreground text-sm w-4">
-        {isLast ? "└" : "├"}
-      </span>
-
       {/* 완료 상태 - Admin이면 클릭 가능 */}
       {isAdmin ? (
         <button
@@ -1077,24 +1072,35 @@ function ChildTaskItem({
         )
       )}
 
-      {/* 태스크명 + 체크리스트 카운트 */}
+      {/* 태스크명 - 모바일 2줄, 데스크톱 1줄 */}
       <button
         type="button"
         className={cn(
-          "flex-1 text-sm text-left hover:underline truncate flex items-center gap-1.5",
+          "flex-1 text-sm text-left hover:underline",
+          "line-clamp-2 md:line-clamp-1",
           isCompleted && "text-muted-foreground",
           isHidden && "line-through text-muted-foreground"
         )}
         onClick={() => onTaskClick(task.id)}
       >
-        <span className="truncate">{task.name}</span>
-        {checklistCount.total > 0 && (
-          <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-0.5">
-            <ListChecks className="h-3 w-3" />
-            {checklistCount.checked}/{checklistCount.total}
-          </span>
-        )}
+        {task.name}
       </button>
+
+      {/* 체크리스트 카운트 - 클릭 시 상세 시트 열기 */}
+      {checklistCount.total > 0 && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTaskClick(task.id);
+          }}
+          className="text-xs text-blue-500 hover:text-blue-700 hover:underline shrink-0 flex items-center gap-0.5"
+          title="체크리스트 보기"
+        >
+          <ListChecks className="h-3 w-3" />
+          {checklistCount.checked}/{checklistCount.total}
+        </button>
+      )}
 
       {/* 날짜 */}
       <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -1123,13 +1129,13 @@ function ChildTaskItem({
         </Badge>
       )}
 
-      {/* 숨김/보임 토글 (ADMIN만) */}
+      {/* 숨김/보임 토글 (ADMIN만, 데스크톱만) */}
       {isAdmin && (
         <Button
           variant="ghost"
           size="icon"
           className={cn(
-            "h-6 w-6 shrink-0",
+            "h-6 w-6 shrink-0 hidden md:flex",
             !task.isActive && "bg-muted"
           )}
           onClick={onToggleActive}
