@@ -189,7 +189,7 @@ export function QuotationTable({ quotations, showOrganization = false }: Quotati
                     </TableCell>
                   )}
                   <TableCell className="text-right font-mono">
-                    {quotation.capacityKw.toLocaleString()} kW
+                    {quotation.capacityKw ? `${quotation.capacityKw.toLocaleString()} kW` : "-"}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {quotation.grandTotal.toLocaleString()}원
