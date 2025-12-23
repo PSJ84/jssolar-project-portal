@@ -45,7 +45,9 @@ export async function POST(
       });
 
       // 부가세 포함 여부에 따른 변환
-      // vatIncluded가 true이면 이미 VAT 포함된 금액, false이면 VAT 별도(공급가액)
+      // 견적서가 VAT 별도면 → 1.1 곱해서 저장 (VAT 포함 금액으로 변환)
+      // 견적서가 VAT 포함이면 → 그대로 저장
+      // 저장 후 vatIncluded: false로 설정 (이미 최종 금액이므로 추가 VAT 계산 불필요)
       const vatMultiplier = quotation.vatIncluded ? 1 : 1.1;
 
       // 매출 항목 생성 (도급계약)
@@ -55,7 +57,7 @@ export async function POST(
           type: "INCOME",
           category: "도급계약",
           plannedAmount: Math.round(quotation.totalAmount * vatMultiplier),
-          vatIncluded: true, // 최종 금액은 VAT 포함
+          vatIncluded: false, // 이미 VAT 포함된 최종 금액
           memo: `${quotation.quotationNumber} 견적서에서 불러옴`,
           sortOrder: 0,
         },
@@ -73,7 +75,7 @@ export async function POST(
             type: "EXPENSE",
             category: item.name,
             plannedAmount: Math.round(item.amount * vatMultiplier),
-            vatIncluded: true, // 최종 금액은 VAT 포함
+            vatIncluded: false, // 이미 VAT 포함된 최종 금액
             memo: item.note || null,
             sortOrder: i,
           },

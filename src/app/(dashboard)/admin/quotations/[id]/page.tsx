@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Card,
@@ -136,10 +137,14 @@ export default function QuotationDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { data: session } = useSession();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // 관리자 권한 체크 (CLIENT는 실행단가/실행금액 못 봄)
+  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     fetchQuotation();
@@ -482,7 +487,7 @@ export default function QuotationDetailPage({
                           <TableHead className="text-right">단가</TableHead>
                           <TableHead className="text-right">금액</TableHead>
                           <TableHead>비고</TableHead>
-                          {hasExecData && (
+                          {isAdmin && hasExecData && (
                             <>
                               <TableHead className="text-right bg-blue-50">실행단가</TableHead>
                               <TableHead className="text-right bg-blue-50">실행금액</TableHead>
@@ -510,7 +515,7 @@ export default function QuotationDetailPage({
                             <TableCell className="text-muted-foreground">
                               {item.note || "-"}
                             </TableCell>
-                            {hasExecData && (
+                            {isAdmin && hasExecData && (
                               <>
                                 <TableCell className="text-right font-mono bg-blue-50">
                                   {item.execUnitPrice?.toLocaleString() || "-"}
@@ -530,7 +535,7 @@ export default function QuotationDetailPage({
                             {quotation.subtotal.toLocaleString()}원
                           </TableCell>
                           <TableCell></TableCell>
-                          {hasExecData && (
+                          {isAdmin && hasExecData && (
                             <>
                               <TableCell></TableCell>
                               <TableCell className="text-right font-mono font-medium bg-blue-50">
@@ -548,7 +553,7 @@ export default function QuotationDetailPage({
                               {quotation.roundingAmount.toLocaleString()}원
                             </TableCell>
                             <TableCell></TableCell>
-                            {hasExecData && (
+                            {isAdmin && hasExecData && (
                               <>
                                 <TableCell></TableCell>
                                 <TableCell></TableCell>
@@ -562,7 +567,7 @@ export default function QuotationDetailPage({
                             {quotation.totalAmount.toLocaleString()}원
                           </TableCell>
                           <TableCell></TableCell>
-                          {hasExecData && (
+                          {isAdmin && hasExecData && (
                             <>
                               <TableCell></TableCell>
                               <TableCell className="text-right font-mono font-bold text-lg bg-blue-50">
@@ -589,22 +594,27 @@ export default function QuotationDetailPage({
                         {quotation.totalAmount.toLocaleString()}원
                       </span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">VAT (10%)</span>
-                      <span className="font-mono">
-                        {quotation.vatIncluded ? "포함" : quotation.vatAmount.toLocaleString() + "원"}
-                      </span>
-                    </div>
+                    {!quotation.vatIncluded && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">부가세 (10%)</span>
+                        <span className="font-mono">
+                          {quotation.vatAmount.toLocaleString()}원
+                        </span>
+                      </div>
+                    )}
                     <Separator />
                     <div className="flex justify-between">
-                      <span className="font-semibold">총액</span>
+                      <span className="font-semibold">합계</span>
                       <span className="text-xl font-bold text-primary font-mono">
                         {quotation.grandTotal.toLocaleString()}원
                       </span>
                     </div>
+                    <div className="text-sm text-muted-foreground text-right">
+                      (부가세 {quotation.vatIncluded ? "포함" : "별도"})
+                    </div>
 
-                    {/* 예상 이익 (실행견적이 있을 때) */}
-                    {hasExecData && quotation.execTotal && (
+                    {/* 예상 이익 (실행견적이 있을 때, 관리자만) */}
+                    {isAdmin && hasExecData && quotation.execTotal && (
                       <>
                         <Separator />
                         <div className="p-4 bg-muted rounded-lg space-y-2">

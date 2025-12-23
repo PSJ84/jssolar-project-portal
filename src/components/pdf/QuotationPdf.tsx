@@ -413,12 +413,14 @@ export function QuotationPdf({ quotation, company }: QuotationPdfProps) {
               {formatNumber(quotation.totalAmount)}원
             </Text>
           </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>부가세 (10%)</Text>
-            <Text style={styles.totalValue}>
-              {quotation.vatIncluded ? "포함" : formatNumber(quotation.vatAmount) + "원"}
-            </Text>
-          </View>
+          {!quotation.vatIncluded && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>부가세 (10%)</Text>
+              <Text style={styles.totalValue}>
+                {formatNumber(quotation.vatAmount)}원
+              </Text>
+            </View>
+          )}
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>합계금액</Text>
             <Text style={styles.grandTotalValue}>
