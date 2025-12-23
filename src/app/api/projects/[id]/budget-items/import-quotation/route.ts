@@ -63,18 +63,24 @@ export async function POST(
         },
       });
 
-      // 지출 항목 생성 (견적서 품목들)
+      // 지출 항목 생성 (실행금액 우선 사용)
       for (let i = 0; i < quotation.items.length; i++) {
         const item = quotation.items[i];
+
+        // 실행금액이 있으면 실행금액 사용, 없으면 원래 금액 사용
+        const expenseAmount = item.execAmount && item.execAmount > 0
+          ? item.execAmount
+          : item.amount;
+
         // 금액이 0인 항목은 건너뜀
-        if (item.amount === 0) continue;
+        if (expenseAmount === 0) continue;
 
         await tx.budgetItem.create({
           data: {
             projectId,
             type: "EXPENSE",
             category: item.name,
-            plannedAmount: Math.round(item.amount * vatMultiplier),
+            plannedAmount: Math.round(expenseAmount * vatMultiplier),
             vatIncluded: false, // 이미 VAT 포함된 최종 금액
             memo: item.note || null,
             sortOrder: i,
