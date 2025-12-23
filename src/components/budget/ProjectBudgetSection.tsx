@@ -41,6 +41,8 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   GripVertical,
+  FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -145,8 +147,23 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
   // Dialog states
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [txDialogOpen, setTxDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
   const [editingTx, setEditingTx] = useState<{ item: BudgetItem; tx: BudgetTransaction | null } | null>(null);
+
+  // Quotation import states
+  const [quotations, setQuotations] = useState<Array<{
+    id: string;
+    quotationNumber: string;
+    customerName: string;
+    projectName: string | null;
+    totalAmount: number;
+    vatIncluded: boolean;
+    status: string;
+    projectId: string | null;
+  }>>([]);
+  const [selectedQuotationId, setSelectedQuotationId] = useState("");
+  const [loadingQuotations, setLoadingQuotations] = useState(false);
 
   // Form states
   const [itemForm, setItemForm] = useState({ type: "INCOME" as "INCOME" | "EXPENSE", category: "", plannedAmount: "", vatIncluded: false, memo: "" });
@@ -188,6 +205,66 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // 견적서 목록 로드
+  const fetchQuotations = async () => {
+    setLoadingQuotations(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/quotations`);
+      if (res.ok) {
+        const data = await res.json();
+        setQuotations(data);
+      }
+    } catch (error) {
+      console.error("Error fetching quotations:", error);
+    } finally {
+      setLoadingQuotations(false);
+    }
+  };
+
+  // 견적서 불러오기 다이얼로그 열기
+  const openImportDialog = () => {
+    setSelectedQuotationId("");
+    fetchQuotations();
+    setImportDialogOpen(true);
+  };
+
+  // 견적서 불러오기 실행
+  const handleImportQuotation = async () => {
+    if (!selectedQuotationId) {
+      toast.error("견적서를 선택해주세요");
+      return;
+    }
+
+    const hasExistingItems = items.length > 0;
+    if (hasExistingItems) {
+      if (!confirm("기존 예산 항목이 모두 삭제되고 견적서 내용으로 대체됩니다.\n계속하시겠습니까?")) {
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/budget-items/import-quotation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quotationId: selectedQuotationId }),
+      });
+
+      if (res.ok) {
+        toast.success("견적서를 불러왔습니다");
+        setImportDialogOpen(false);
+        fetchData();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || "불러오기 실패");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "견적서 불러오기에 실패했습니다");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // 품목 추가/수정
   const handleSaveItem = async () => {
@@ -406,7 +483,13 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
       {summary && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">손익 요약</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">손익 요약</CardTitle>
+              <Button variant="outline" size="sm" onClick={openImportDialog}>
+                <FileText className="h-4 w-4 mr-1" />
+                견적서 불러오기
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -864,6 +947,66 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
             <Button onClick={handleSaveTx} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editingTx?.tx ? "수정" : "추가"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 견적서 불러오기 다이얼로그 */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>견적서 불러오기</DialogTitle>
+            <DialogDescription>
+              예산에 적용할 견적서를 선택하세요. 부가세 별도 견적서는 자동으로 부가세 포함 금액으로 변환됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {loadingQuotations ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : quotations.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                불러올 수 있는 견적서가 없습니다.
+              </div>
+            ) : (
+              <Select value={selectedQuotationId} onValueChange={setSelectedQuotationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="견적서 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {quotations.map((q) => (
+                    <SelectItem key={q.id} value={q.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{q.quotationNumber}</span>
+                        <span className="text-muted-foreground">-</span>
+                        <span>{q.customerName}</span>
+                        <span className="text-muted-foreground">
+                          ({formatAmount(q.totalAmount)}원{!q.vatIncluded && " +VAT"})
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {items.length > 0 && (
+              <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div className="text-yellow-800">
+                  <p className="font-medium">주의</p>
+                  <p>기존 예산 항목 {items.length}개가 삭제되고 견적서 내용으로 대체됩니다.</p>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>취소</Button>
+            <Button onClick={handleImportQuotation} disabled={saving || !selectedQuotationId}>
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              불러오기
             </Button>
           </DialogFooter>
         </DialogContent>
