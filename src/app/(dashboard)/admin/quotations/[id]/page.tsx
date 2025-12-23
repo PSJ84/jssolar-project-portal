@@ -21,6 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   DropdownMenu,
@@ -47,7 +48,6 @@ import {
   Send,
   CheckCircle,
   XCircle,
-  Printer,
   Download,
   Copy,
   FileText,
@@ -59,13 +59,14 @@ import { ProfitAnalysisForm } from "@/components/quotation/ProfitAnalysisForm";
 
 interface QuotationItem {
   id: string;
-  category: string;
   name: string;
-  spec: string | null;
   unit: string;
   quantity: number;
   unitPrice: number;
   amount: number;
+  note: string | null;
+  execUnitPrice: number | null;
+  execAmount: number | null;
   sortOrder: number;
 }
 
@@ -74,19 +75,22 @@ interface Quotation {
   quotationNumber: string;
   version: number;
   customerName: string;
+  customerAddress: string | null;
   customerPhone: string | null;
   customerEmail: string | null;
   address: string | null;
-  capacityKw: number;
-  moduleType: string;
-  moduleCount: number;
-  inverterType: string;
-  inverterCount: number;
-  structureType: string | null;
+  projectName: string | null;
+  quotationDate: string;
+  subtotal: number;
+  roundingAmount: number;
   totalAmount: number;
   vatAmount: number;
   grandTotal: number;
   vatIncluded: boolean;
+  roundingType: string;
+  specialNotes: string | null;
+  execSubtotal: number | null;
+  execTotal: number | null;
   validUntil: string;
   status: QuotationStatus;
   createdAt: string;
@@ -123,14 +127,6 @@ const statusVariants: Record<
   ACCEPTED: "default",
   REJECTED: "destructive",
   EXPIRED: "outline",
-};
-
-const categoryLabels: Record<string, string> = {
-  MODULE: "모듈",
-  INVERTER: "인버터",
-  STRUCTURE: "구조물",
-  LABOR: "시공비",
-  ETC: "기타",
 };
 
 export default function QuotationDetailPage({
@@ -212,6 +208,9 @@ export default function QuotationDetailPage({
     new Date(quotation.validUntil) < new Date() &&
     quotation.status !== "ACCEPTED";
 
+  // 실행견적 합계가 있는지 확인
+  const hasExecData = quotation?.execSubtotal && quotation.execSubtotal > 0;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -230,18 +229,6 @@ export default function QuotationDetailPage({
       </div>
     );
   }
-
-  // 카테고리별 항목 그룹핑
-  const groupedItems = quotation.items.reduce(
-    (acc, item) => {
-      if (!acc[item.category]) {
-        acc[item.category] = [];
-      }
-      acc[item.category].push(item);
-      return acc;
-    },
-    {} as Record<string, QuotationItem[]>
-  );
 
   return (
     <div className="space-y-6">
@@ -276,20 +263,13 @@ export default function QuotationDetailPage({
               )}
             </div>
             <p className="text-muted-foreground">
-              {quotation.customerName} · {quotation.capacityKw}kW
+              {quotation.customerName}
+              {quotation.projectName && ` · ${quotation.projectName}`}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.print()}
-          >
-            <Printer className="h-4 w-4 mr-2" />
-            인쇄
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -377,7 +357,7 @@ export default function QuotationDetailPage({
 
         <TabsContent value="detail">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 왼쪽: 고객 정보 + 설치 정보 */}
+            {/* 왼쪽: 고객 정보 + 견적 정보 */}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -385,9 +365,15 @@ export default function QuotationDetailPage({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <p className="text-sm text-muted-foreground">고객명</p>
+                    <p className="text-sm text-muted-foreground">고객명 (수신)</p>
                     <p className="font-medium">{quotation.customerName}</p>
                   </div>
+                  {quotation.customerAddress && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">고객 주소</p>
+                      <p className="font-medium">{quotation.customerAddress}</p>
+                    </div>
+                  )}
                   {quotation.customerPhone && (
                     <div>
                       <p className="text-sm text-muted-foreground">연락처</p>
@@ -411,36 +397,6 @@ export default function QuotationDetailPage({
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">설치 정보</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">설치 용량</p>
-                    <p className="font-medium">{quotation.capacityKw} kW</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">모듈</p>
-                    <p className="font-medium">
-                      {quotation.moduleType} × {quotation.moduleCount}장
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">인버터</p>
-                    <p className="font-medium">
-                      {quotation.inverterType} × {quotation.inverterCount}대
-                    </p>
-                  </div>
-                  {quotation.structureType && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">구조물</p>
-                      <p className="font-medium">{quotation.structureType}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
                   <CardTitle className="text-base">견적 정보</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -448,10 +404,16 @@ export default function QuotationDetailPage({
                     <p className="text-sm text-muted-foreground">견적 번호</p>
                     <p className="font-medium">{quotation.quotationNumber}</p>
                   </div>
+                  {quotation.projectName && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">건명</p>
+                      <p className="font-medium">{quotation.projectName}</p>
+                    </div>
+                  )}
                   <div>
-                    <p className="text-sm text-muted-foreground">작성일</p>
+                    <p className="text-sm text-muted-foreground">견적일자</p>
                     <p className="font-medium">
-                      {new Date(quotation.createdAt).toLocaleDateString("ko-KR")}
+                      {new Date(quotation.quotationDate).toLocaleDateString("ko-KR")}
                     </p>
                   </div>
                   <div>
@@ -462,6 +424,10 @@ export default function QuotationDetailPage({
                       {new Date(quotation.validUntil).toLocaleDateString("ko-KR")}
                       {isExpired && " (만료됨)"}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">부가세</p>
+                    <p className="font-medium">{quotation.vatIncluded ? "포함" : "별도"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">작성자</p>
@@ -482,6 +448,17 @@ export default function QuotationDetailPage({
                   )}
                 </CardContent>
               </Card>
+
+              {quotation.specialNotes && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">특기사항</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="whitespace-pre-wrap text-sm">{quotation.specialNotes}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* 오른쪽: 견적 항목 + 합계 */}
@@ -494,47 +471,107 @@ export default function QuotationDetailPage({
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="border rounded-lg">
+                  <div className="border rounded-lg overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>구분</TableHead>
+                          <TableHead className="w-12 text-center">NO</TableHead>
                           <TableHead>품명</TableHead>
-                          <TableHead>규격</TableHead>
+                          <TableHead className="text-center">단위</TableHead>
                           <TableHead className="text-right">수량</TableHead>
                           <TableHead className="text-right">단가</TableHead>
                           <TableHead className="text-right">금액</TableHead>
+                          <TableHead>비고</TableHead>
+                          {hasExecData && (
+                            <>
+                              <TableHead className="text-right bg-blue-50">실행단가</TableHead>
+                              <TableHead className="text-right bg-blue-50">실행금액</TableHead>
+                            </>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {Object.entries(groupedItems).map(([category, items]) => (
-                          items.map((item, index) => (
-                            <TableRow key={item.id}>
-                              {index === 0 && (
-                                <TableCell
-                                  rowSpan={items.length}
-                                  className="font-medium bg-muted/30"
-                                >
-                                  {categoryLabels[category] || category}
+                        {quotation.items.map((item, index) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="text-center text-muted-foreground">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell className="text-center">{item.unit}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              {item.quantity.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {item.unitPrice.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-medium">
+                              {item.amount.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {item.note || "-"}
+                            </TableCell>
+                            {hasExecData && (
+                              <>
+                                <TableCell className="text-right font-mono bg-blue-50">
+                                  {item.execUnitPrice?.toLocaleString() || "-"}
                                 </TableCell>
-                              )}
-                              <TableCell>{item.name}</TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {item.spec || "-"}
-                              </TableCell>
-                              <TableCell className="text-right font-mono">
-                                {item.quantity.toLocaleString()} {item.unit}
-                              </TableCell>
-                              <TableCell className="text-right font-mono">
-                                {item.unitPrice.toLocaleString()}원
-                              </TableCell>
-                              <TableCell className="text-right font-mono">
-                                {item.amount.toLocaleString()}원
-                              </TableCell>
-                            </TableRow>
-                          ))
+                                <TableCell className="text-right font-mono font-medium bg-blue-50">
+                                  {item.execAmount?.toLocaleString() || "-"}
+                                </TableCell>
+                              </>
+                            )}
+                          </TableRow>
                         ))}
                       </TableBody>
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-right">소계</TableCell>
+                          <TableCell className="text-right font-mono font-medium">
+                            {quotation.subtotal.toLocaleString()}원
+                          </TableCell>
+                          <TableCell></TableCell>
+                          {hasExecData && (
+                            <>
+                              <TableCell></TableCell>
+                              <TableCell className="text-right font-mono font-medium bg-blue-50">
+                                {quotation.execSubtotal?.toLocaleString()}원
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                        {quotation.roundingAmount !== 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-right text-muted-foreground">
+                              잔액정리
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-muted-foreground">
+                              {quotation.roundingAmount.toLocaleString()}원
+                            </TableCell>
+                            <TableCell></TableCell>
+                            {hasExecData && (
+                              <>
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
+                              </>
+                            )}
+                          </TableRow>
+                        )}
+                        <TableRow className="bg-muted/50">
+                          <TableCell colSpan={5} className="text-right font-semibold">합계</TableCell>
+                          <TableCell className="text-right font-mono font-bold text-lg">
+                            {quotation.totalAmount.toLocaleString()}원
+                          </TableCell>
+                          <TableCell></TableCell>
+                          {hasExecData && (
+                            <>
+                              <TableCell></TableCell>
+                              <TableCell className="text-right font-mono font-bold text-lg bg-blue-50">
+                                {quotation.execTotal?.toLocaleString()}원
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                      </TableFooter>
                     </Table>
                   </div>
                 </CardContent>
@@ -555,7 +592,7 @@ export default function QuotationDetailPage({
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">VAT (10%)</span>
                       <span className="font-mono">
-                        {quotation.vatAmount.toLocaleString()}원
+                        {quotation.vatIncluded ? "포함" : quotation.vatAmount.toLocaleString() + "원"}
                       </span>
                     </div>
                     <Separator />
@@ -565,15 +602,31 @@ export default function QuotationDetailPage({
                         {quotation.grandTotal.toLocaleString()}원
                       </span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">kW당 단가</span>
-                      <span className="font-mono">
-                        {Math.round(
-                          quotation.grandTotal / quotation.capacityKw
-                        ).toLocaleString()}
-                        원/kW
-                      </span>
-                    </div>
+
+                    {/* 예상 이익 (실행견적이 있을 때) */}
+                    {hasExecData && quotation.execTotal && (
+                      <>
+                        <Separator />
+                        <div className="p-4 bg-muted rounded-lg space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>실행금액</span>
+                            <span className="font-mono text-blue-600">
+                              {quotation.execTotal.toLocaleString()}원
+                            </span>
+                          </div>
+                          <div className="flex justify-between font-medium">
+                            <span>예상 이익</span>
+                            <span className={`font-mono ${(quotation.totalAmount - quotation.execTotal) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                              {(quotation.totalAmount - quotation.execTotal) >= 0 ? "+" : ""}
+                              {(quotation.totalAmount - quotation.execTotal).toLocaleString()}원
+                              ({quotation.totalAmount > 0
+                                ? (((quotation.totalAmount - quotation.execTotal) / quotation.totalAmount) * 100).toFixed(1)
+                                : 0}%)
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -586,7 +639,7 @@ export default function QuotationDetailPage({
             quotation={{
               id: quotation.id,
               quotationNumber: quotation.quotationNumber,
-              capacityKw: quotation.capacityKw,
+              capacityKw: 0, // Legacy field - not used in new quotations
               grandTotal: quotation.grandTotal,
             }}
           />

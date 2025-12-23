@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getDisplayAmount } from "@/lib/vat-utils";
 
 // GET: 프로젝트 손익 요약
 export async function GET(
@@ -28,9 +29,9 @@ export async function GET(
     // 매입 (EXPENSE) 품목
     const expenseItems = budgetItems.filter((item) => item.type === "EXPENSE");
 
-    // 매출 계산
+    // 매출 계산 (VAT 포함)
     const totalIncomePlanned = incomeItems.reduce(
-      (sum, item) => sum + item.plannedAmount,
+      (sum, item) => sum + getDisplayAmount(item.plannedAmount, item.vatIncluded),
       0
     );
     const totalIncomeActual = incomeItems.reduce(
@@ -38,7 +39,7 @@ export async function GET(
         sum +
         item.transactions
           .filter((tx) => tx.isCompleted)
-          .reduce((txSum, tx) => txSum + tx.amount, 0),
+          .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
       0
     );
     const totalIncomePending = incomeItems.reduce(
@@ -46,13 +47,13 @@ export async function GET(
         sum +
         item.transactions
           .filter((tx) => !tx.isCompleted)
-          .reduce((txSum, tx) => txSum + tx.amount, 0),
+          .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
       0
     );
 
-    // 매입 계산
+    // 매입 계산 (VAT 포함)
     const totalExpensePlanned = expenseItems.reduce(
-      (sum, item) => sum + item.plannedAmount,
+      (sum, item) => sum + getDisplayAmount(item.plannedAmount, item.vatIncluded),
       0
     );
     const totalExpenseActual = expenseItems.reduce(
@@ -60,7 +61,7 @@ export async function GET(
         sum +
         item.transactions
           .filter((tx) => tx.isCompleted)
-          .reduce((txSum, tx) => txSum + tx.amount, 0),
+          .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
       0
     );
     const totalExpensePending = expenseItems.reduce(
@@ -68,7 +69,7 @@ export async function GET(
         sum +
         item.transactions
           .filter((tx) => !tx.isCompleted)
-          .reduce((txSum, tx) => txSum + tx.amount, 0),
+          .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
       0
     );
 

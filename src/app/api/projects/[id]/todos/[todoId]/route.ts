@@ -46,7 +46,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { title, description, dueDate, priority, assigneeId, completed } = body;
+    const { title, description, dueDate, priority, assigneeId, completed, completedDate } = body;
 
     // 업데이트 데이터 구성
     const updateData: {
@@ -85,8 +85,18 @@ export async function PATCH(
       updateData.assigneeId = assigneeId || null;
     }
 
-    // 완료 처리
-    if (completed !== undefined) {
+    // 완료 처리 - completedDate 직접 지정 또는 completed 토글
+    if (completedDate !== undefined) {
+      // 직접 날짜 지정
+      if (completedDate) {
+        updateData.completedDate = new Date(completedDate);
+        updateData.completedById = session.user.id;
+      } else {
+        updateData.completedDate = null;
+        updateData.completedById = null;
+      }
+    } else if (completed !== undefined) {
+      // 기존 토글 방식 (호환성)
       if (completed) {
         updateData.completedDate = new Date();
         updateData.completedById = session.user.id;

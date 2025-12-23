@@ -537,27 +537,40 @@ model Quotation {
   version         Int             @default(1)
 
   // 고객 정보
-  customerName    String
+  customerName    String            // 수신 (고객명)
+  customerAddress String?           // 고객 주소
   customerPhone   String?
   customerEmail   String?
-  address         String?
+  address         String?           // 레거시 호환용
 
-  // 설치 정보
-  capacityKw      Float
-  moduleType      String
-  moduleCount     Int
-  inverterType    String
-  inverterCount   Int
+  // 프로젝트 정보
+  projectName     String?           // 건명
+
+  // 견적 정보
+  quotationDate   DateTime @default(now())  // 일자
+  validUntil      DateTime?         // 유효기간
+  specialNotes    String?  @db.Text // 특기사항
+
+  // 설치 정보 (레거시 호환용)
+  capacityKw      Float?
+  moduleType      String?
+  moduleCount     Int?
+  inverterType    String?
+  inverterCount   Int?
   structureType   String?
 
   // 금액
-  totalAmount     Int             // 총 금액 (VAT 별도)
-  vatAmount       Int             // VAT
-  grandTotal      Int             // 총 금액 (VAT 포함)
-  vatIncluded     Boolean         @default(false)
+  subtotal        Int      @default(0)  // 소계
+  roundingType    String   @default("NONE")  // NONE, THOUSAND, TEN_THOUSAND
+  roundingAmount  Int      @default(0)  // 잔액정리 금액
+  totalAmount     Int      @default(0)  // 합계
+  vatAmount       Int      @default(0)  // VAT (레거시 호환)
+  grandTotal      Int      @default(0)  // 총 금액 (레거시 호환)
+  vatIncluded     Boolean  @default(false)  // 부가세 포함 여부
 
-  // 유효기간
-  validUntil      DateTime
+  // 실행견적 합계 (내부용)
+  execSubtotal    Int?
+  execTotal       Int?
 
   // 상태
   status          QuotationStatus @default(DRAFT)
@@ -592,14 +605,25 @@ model QuotationItem {
   quotationId   String
   quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
-  category      String    // MODULE, INVERTER, etc
-  name          String
+  name          String            // 품명 및 규격
+  unit          String  @default("식")  // 단위 (EA, 식, kW, m, m², SET, LOT)
+  quantity      Float   @default(1)     // 수량
+  unitPrice     Int     @default(0)     // 단가
+  amount        Int     @default(0)     // 금액 (수량 * 단가)
+  note          String? // 비고
+
+  // 실행견적 (내부용)
+  execUnitPrice Int?              // 실행단가
+  execAmount    Int?              // 실행금액
+
+  // 레거시 호환
+  category      String?   // MODULE, INVERTER, etc
   spec          String?
-  unit          String
-  quantity      Int
-  unitPrice     Int
-  amount        Int       // quantity * unitPrice
-  sortOrder     Int       @default(0)
+
+  sortOrder     Int     @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([quotationId, sortOrder])
 }

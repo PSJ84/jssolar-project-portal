@@ -81,7 +81,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const quotationInfo: QuotationBasicInfo = {
       quotationNumber: quotation.quotationNumber,
       customerName: quotation.customerName,
-      capacityKw: quotation.capacityKw,
+      capacityKw: quotation.capacityKw || 0,  // Legacy field - may be null in new quotations
       grandTotal: quotation.grandTotal,
     };
 

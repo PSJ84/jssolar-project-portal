@@ -64,6 +64,13 @@ const styles = StyleSheet.create({
     marginVertical: 20,
     letterSpacing: 8,
   },
+  projectName: {
+    fontSize: 12,
+    fontWeight: 500,
+    textAlign: "center",
+    marginBottom: 15,
+    color: "#374151",
+  },
   infoSection: {
     flexDirection: "row",
     marginBottom: 20,
@@ -95,26 +102,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontWeight: 500,
   },
-  installInfo: {
-    marginBottom: 15,
-    padding: 10,
-    backgroundColor: "#eff6ff",
-    borderRadius: 4,
-  },
-  installTitle: {
-    fontSize: 10,
-    fontWeight: 700,
-    marginBottom: 6,
-    color: "#1e40af",
-  },
-  installRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 15,
-  },
-  installItem: {
-    flexDirection: "row",
-  },
   table: {
     marginTop: 10,
   },
@@ -140,13 +127,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9fafb",
   },
   col1: { width: "6%", textAlign: "center" },
-  col2: { width: "12%", textAlign: "center" },
-  col3: { width: "28%" },
-  col4: { width: "14%" },
-  col5: { width: "8%", textAlign: "center" },
-  col6: { width: "8%", textAlign: "right" },
-  col7: { width: "12%", textAlign: "right" },
-  col8: { width: "12%", textAlign: "right" },
+  col2: { width: "34%" },
+  col3: { width: "8%", textAlign: "center" },
+  col4: { width: "10%", textAlign: "right" },
+  col5: { width: "14%", textAlign: "right" },
+  col6: { width: "14%", textAlign: "right" },
+  col7: { width: "14%" },
   totalSection: {
     marginTop: 20,
     borderTop: "2px solid #1e40af",
@@ -189,6 +175,23 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     color: "#1e40af",
   },
+  notesSection: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 4,
+  },
+  notesTitle: {
+    fontSize: 10,
+    fontWeight: 700,
+    marginBottom: 6,
+    color: "#374151",
+  },
+  notesText: {
+    fontSize: 8,
+    color: "#4b5563",
+    lineHeight: 1.5,
+  },
   validitySection: {
     marginTop: 25,
     padding: 10,
@@ -230,44 +233,31 @@ const styles = StyleSheet.create({
   },
 });
 
-// 카테고리 한글 라벨
-const categoryLabels: Record<string, string> = {
-  MODULE: "모듈",
-  INVERTER: "인버터",
-  STRUCTURE: "구조물",
-  CABLE: "케이블",
-  MONITORING: "모니터링",
-  CONSTRUCTION: "시공",
-  PERMIT: "인허가",
-  OTHER: "기타",
-};
-
 export interface QuotationPdfData {
   quotationNumber: string;
   customerName: string;
+  customerAddress?: string | null;
   customerPhone?: string | null;
   customerEmail?: string | null;
   address?: string | null;
-  capacityKw: number;
-  moduleType: string;
-  moduleCount: number;
-  inverterType: string;
-  inverterCount: number;
-  structureType?: string | null;
+  projectName?: string | null;
   items: Array<{
-    category: string;
     name: string;
-    spec?: string | null;
     unit: string;
     quantity: number;
     unitPrice: number;
     amount: number;
+    note?: string | null;
   }>;
+  subtotal: number;
+  roundingAmount: number;
   totalAmount: number;
   vatAmount: number;
   grandTotal: number;
-  validUntil: Date | string;
-  createdAt: Date | string;
+  vatIncluded: boolean;
+  specialNotes?: string | null;
+  validUntil: Date | string | null;
+  quotationDate: Date | string;
 }
 
 export interface CompanyInfo {
@@ -307,12 +297,17 @@ export function QuotationPdf({ quotation, company }: QuotationPdfProps) {
           </View>
           <View style={styles.headerRight}>
             <Text>견적번호: {quotation.quotationNumber}</Text>
-            <Text>작성일: {formatDate(quotation.createdAt)}</Text>
+            <Text>작성일: {formatDate(quotation.quotationDate)}</Text>
           </View>
         </View>
 
         {/* 제목 */}
         <Text style={styles.title}>견 적 서</Text>
+
+        {/* 건명 */}
+        {quotation.projectName && (
+          <Text style={styles.projectName}>건명: {quotation.projectName}</Text>
+        )}
 
         {/* 정보 섹션 */}
         <View style={styles.infoSection}>
@@ -325,7 +320,9 @@ export function QuotationPdf({ quotation, company }: QuotationPdfProps) {
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>주소</Text>
-              <Text style={styles.infoValue}>{quotation.address || "-"}</Text>
+              <Text style={styles.infoValue}>
+                {quotation.customerAddress || quotation.address || "-"}
+              </Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>연락처</Text>
@@ -367,46 +364,16 @@ export function QuotationPdf({ quotation, company }: QuotationPdfProps) {
           </View>
         </View>
 
-        {/* 설치 정보 */}
-        <View style={styles.installInfo}>
-          <Text style={styles.installTitle}>설치 정보</Text>
-          <View style={styles.installRow}>
-            <View style={styles.installItem}>
-              <Text style={styles.infoLabel}>설치용량</Text>
-              <Text style={styles.infoValue}>{quotation.capacityKw} kW</Text>
-            </View>
-            <View style={styles.installItem}>
-              <Text style={styles.infoLabel}>모듈</Text>
-              <Text style={styles.infoValue}>
-                {quotation.moduleType} x {quotation.moduleCount}장
-              </Text>
-            </View>
-            <View style={styles.installItem}>
-              <Text style={styles.infoLabel}>인버터</Text>
-              <Text style={styles.infoValue}>
-                {quotation.inverterType} x {quotation.inverterCount}대
-              </Text>
-            </View>
-            {quotation.structureType && (
-              <View style={styles.installItem}>
-                <Text style={styles.infoLabel}>구조물</Text>
-                <Text style={styles.infoValue}>{quotation.structureType}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
         {/* 견적 테이블 */}
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={styles.col1}>NO</Text>
-            <Text style={styles.col2}>분류</Text>
-            <Text style={styles.col3}>품명</Text>
-            <Text style={styles.col4}>규격</Text>
-            <Text style={styles.col5}>수량</Text>
-            <Text style={styles.col6}>단위</Text>
-            <Text style={styles.col7}>단가</Text>
-            <Text style={styles.col8}>금액</Text>
+            <Text style={styles.col2}>품명 및 규격</Text>
+            <Text style={styles.col3}>단위</Text>
+            <Text style={styles.col4}>수량</Text>
+            <Text style={styles.col5}>단가</Text>
+            <Text style={styles.col6}>금액</Text>
+            <Text style={styles.col7}>비고</Text>
           </View>
           {quotation.items.map((item, index) => (
             <View
@@ -414,21 +381,32 @@ export function QuotationPdf({ quotation, company }: QuotationPdfProps) {
               style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
             >
               <Text style={styles.col1}>{index + 1}</Text>
-              <Text style={styles.col2}>
-                {categoryLabels[item.category] || item.category}
-              </Text>
-              <Text style={styles.col3}>{item.name}</Text>
-              <Text style={styles.col4}>{item.spec || "-"}</Text>
-              <Text style={styles.col5}>{item.quantity}</Text>
-              <Text style={styles.col6}>{item.unit}</Text>
-              <Text style={styles.col7}>{formatNumber(item.unitPrice)}</Text>
-              <Text style={styles.col8}>{formatNumber(item.amount)}</Text>
+              <Text style={styles.col2}>{item.name}</Text>
+              <Text style={styles.col3}>{item.unit}</Text>
+              <Text style={styles.col4}>{item.quantity.toLocaleString()}</Text>
+              <Text style={styles.col5}>{formatNumber(item.unitPrice)}</Text>
+              <Text style={styles.col6}>{formatNumber(item.amount)}</Text>
+              <Text style={styles.col7}>{item.note || ""}</Text>
             </View>
           ))}
         </View>
 
         {/* 합계 */}
         <View style={styles.totalSection}>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>소계</Text>
+            <Text style={styles.totalValue}>
+              {formatNumber(quotation.subtotal)}원
+            </Text>
+          </View>
+          {quotation.roundingAmount !== 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>잔액정리</Text>
+              <Text style={styles.totalValue}>
+                {formatNumber(quotation.roundingAmount)}원
+              </Text>
+            </View>
+          )}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>공급가액</Text>
             <Text style={styles.totalValue}>
@@ -438,7 +416,7 @@ export function QuotationPdf({ quotation, company }: QuotationPdfProps) {
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>부가세 (10%)</Text>
             <Text style={styles.totalValue}>
-              {formatNumber(quotation.vatAmount)}원
+              {quotation.vatIncluded ? "포함" : formatNumber(quotation.vatAmount) + "원"}
             </Text>
           </View>
           <View style={styles.grandTotalRow}>
@@ -449,14 +427,23 @@ export function QuotationPdf({ quotation, company }: QuotationPdfProps) {
           </View>
         </View>
 
+        {/* 특기사항 */}
+        {quotation.specialNotes && (
+          <View style={styles.notesSection}>
+            <Text style={styles.notesTitle}>특기사항</Text>
+            <Text style={styles.notesText}>{quotation.specialNotes}</Text>
+          </View>
+        )}
+
         {/* 유효기간 */}
         <View style={styles.validitySection}>
+          {quotation.validUntil && (
+            <Text style={styles.validityText}>
+              ※ 본 견적서의 유효기간: {formatDate(quotation.validUntil)}까지
+            </Text>
+          )}
           <Text style={styles.validityText}>
-            ※ 본 견적서의 유효기간: {formatDate(quotation.validUntil)}까지
-          </Text>
-          <Text style={styles.validityText}>
-            ※ 상기 금액은 부가세 포함 금액이며, 현장 상황에 따라 변동될 수
-            있습니다.
+            ※ 상기 금액은 부가세 {quotation.vatIncluded ? "포함" : "별도"} 금액이며, 현장 상황에 따라 변동될 수 있습니다.
           </Text>
         </View>
 

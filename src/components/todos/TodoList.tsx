@@ -45,9 +45,15 @@ import {
   Circle,
   ListTodo,
   Edit,
+  CalendarIcon,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TodoPriority } from "@prisma/client";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
 
 interface TodoUser {
   id: string;
@@ -107,7 +113,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
   const [formDueDate, setFormDueDate] = useState<Date | undefined>(undefined);
   const [formPriority, setFormPriority] = useState<TodoPriority>("MEDIUM");
   const [formAssigneeId, setFormAssigneeId] = useState<string>("__none__");
-  const [formCompleted, setFormCompleted] = useState(false);
+  const [formCompletedDate, setFormCompletedDate] = useState<string | null>(null);
 
   // 할 일 목록 조회
   const fetchTodos = async () => {
@@ -167,7 +173,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
     setFormDueDate(undefined);
     setFormPriority("MEDIUM");
     setFormAssigneeId("__none__");
-    setFormCompleted(false);
+    setFormCompletedDate(null);
   };
 
   // 할 일 추가
@@ -226,7 +232,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
             dueDate: formDueDate?.toISOString() || null,
             priority: formPriority,
             assigneeId: formAssigneeId === "__none__" ? null : formAssigneeId,
-            completed: formCompleted,
+            completedDate: formCompletedDate,
           }),
         }
       );
@@ -313,7 +319,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
     setFormDueDate(todo.dueDate ? new Date(todo.dueDate) : undefined);
     setFormPriority(todo.priority);
     setFormAssigneeId(todo.assignee?.id || "__none__");
-    setFormCompleted(!!todo.completedDate);
+    setFormCompletedDate(todo.completedDate);
   };
 
   if (loading) {
@@ -633,21 +639,40 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
             <DialogTitle>할 일 수정</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* 완료 체크박스 */}
-            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-              <Checkbox
-                id="formCompleted"
-                checked={formCompleted}
-                onCheckedChange={(checked) => setFormCompleted(checked === true)}
-              />
-              <Label htmlFor="formCompleted" className="cursor-pointer font-medium">
-                완료됨
-              </Label>
-              {formCompleted && (
-                <span className="text-xs text-muted-foreground ml-2">
-                  저장 시 완료 처리됩니다
-                </span>
-              )}
+            {/* 완료일 선택 */}
+            <div className="space-y-2">
+              <Label>완료일</Label>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formCompletedDate
+                        ? format(new Date(formCompletedDate), "yyyy년 MM월 dd일", { locale: ko })
+                        : "완료일 선택 (미완료)"
+                      }
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formCompletedDate ? new Date(formCompletedDate) : undefined}
+                      onSelect={(date) => setFormCompletedDate(date?.toISOString() || null)}
+                      locale={ko}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {formCompletedDate && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setFormCompletedDate(null)}
+                    type="button"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>

@@ -59,6 +59,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // 유효기간 체크하여 EXPIRED 상태 업데이트
     if (
       (quotation.status === "DRAFT" || quotation.status === "SENT") &&
+      quotation.validUntil &&
       new Date(quotation.validUntil) < new Date()
     ) {
       await prisma.quotation.update({
@@ -115,17 +116,30 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const {
       customerName,
+      customerAddress,
       customerPhone,
       customerEmail,
       address,
+      projectName,
+      quotationDate,
+      validUntil,
+      specialNotes,
+      vatIncluded,
+      roundingType,
+      subtotal,
+      roundingAmount,
+      totalAmount,
+      execSubtotal,
+      execTotal,
+      status,
+      items,
+      // 레거시 호환
       capacityKw,
       moduleType,
       moduleCount,
       inverterType,
       inverterCount,
       structureType,
-      status,
-      items,
     } = body;
 
     // 상태 변경 검증
@@ -140,17 +154,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // 항목이 포함된 경우 금액 재계산
-    let totalAmount = existingQuotation.totalAmount;
-    let vatAmount = existingQuotation.vatAmount;
-    let grandTotal = existingQuotation.grandTotal;
+    let finalSubtotal = subtotal ?? existingQuotation.subtotal;
+    let finalTotalAmount = totalAmount ?? existingQuotation.totalAmount;
+    let finalVatAmount = existingQuotation.vatAmount;
+    let finalGrandTotal = existingQuotation.grandTotal;
 
     if (items && Array.isArray(items)) {
-      totalAmount = items.reduce(
-        (sum: number, item: { amount: number }) => sum + item.amount,
+      finalSubtotal = items.reduce(
+        (sum: number, item: { amount: number }) => sum + (item.amount || 0),
         0
       );
-      vatAmount = Math.round(totalAmount * 0.1);
-      grandTotal = totalAmount + vatAmount;
+      const finalRounding = roundingAmount ?? existingQuotation.roundingAmount;
+      finalTotalAmount = finalSubtotal + finalRounding;
+      finalVatAmount = (vatIncluded ?? existingQuotation.vatIncluded) ? 0 : Math.round(finalTotalAmount * 0.1);
+      finalGrandTotal = finalTotalAmount + finalVatAmount;
 
       // 기존 항목 삭제 후 새로 생성
       await prisma.quotationItem.deleteMany({
@@ -161,25 +178,32 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         data: items.map(
           (
             item: {
-              category: string;
               name: string;
-              spec?: string;
               unit: string;
               quantity: number;
               unitPrice: number;
               amount: number;
+              note?: string;
+              execUnitPrice?: number;
+              execAmount?: number;
+              category?: string;
+              spec?: string;
+              sortOrder?: number;
             },
             index: number
           ) => ({
             quotationId: id,
-            category: item.category,
             name: item.name,
+            unit: item.unit || "식",
+            quantity: item.quantity || 1,
+            unitPrice: item.unitPrice || 0,
+            amount: item.amount || 0,
+            note: item.note || null,
+            execUnitPrice: item.execUnitPrice || null,
+            execAmount: item.execAmount || null,
+            category: item.category || null,
             spec: item.spec || null,
-            unit: item.unit,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            amount: item.amount,
-            sortOrder: index,
+            sortOrder: item.sortOrder ?? index,
           })
         ),
       });
@@ -189,17 +213,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       where: { id },
       data: {
         ...(customerName !== undefined && { customerName }),
+        ...(customerAddress !== undefined && { customerAddress: customerAddress || null }),
         ...(customerPhone !== undefined && { customerPhone: customerPhone || null }),
         ...(customerEmail !== undefined && { customerEmail: customerEmail || null }),
         ...(address !== undefined && { address: address || null }),
-        ...(capacityKw !== undefined && { capacityKw }),
-        ...(moduleType !== undefined && { moduleType }),
+        ...(projectName !== undefined && { projectName: projectName || null }),
+        ...(quotationDate !== undefined && { quotationDate: new Date(quotationDate) }),
+        ...(validUntil !== undefined && { validUntil: validUntil ? new Date(validUntil) : null }),
+        ...(specialNotes !== undefined && { specialNotes: specialNotes || null }),
+        ...(vatIncluded !== undefined && { vatIncluded }),
+        ...(roundingType !== undefined && { roundingType }),
+        ...(roundingAmount !== undefined && { roundingAmount }),
+        ...(items && { subtotal: finalSubtotal, totalAmount: finalTotalAmount, vatAmount: finalVatAmount, grandTotal: finalGrandTotal }),
+        ...(execSubtotal !== undefined && { execSubtotal: execSubtotal || null }),
+        ...(execTotal !== undefined && { execTotal: execTotal || null }),
+        ...(status !== undefined && { status }),
+        // 레거시 호환
+        ...(capacityKw !== undefined && { capacityKw: capacityKw || null }),
+        ...(moduleType !== undefined && { moduleType: moduleType || null }),
         ...(moduleCount !== undefined && { moduleCount }),
-        ...(inverterType !== undefined && { inverterType }),
+        ...(inverterType !== undefined && { inverterType: inverterType || null }),
         ...(inverterCount !== undefined && { inverterCount }),
         ...(structureType !== undefined && { structureType: structureType || null }),
-        ...(status !== undefined && { status }),
-        ...(items && { totalAmount, vatAmount, grandTotal }),
       },
       include: {
         items: {
