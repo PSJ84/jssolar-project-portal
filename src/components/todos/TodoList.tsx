@@ -107,6 +107,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
   const [formDueDate, setFormDueDate] = useState<Date | undefined>(undefined);
   const [formPriority, setFormPriority] = useState<TodoPriority>("MEDIUM");
   const [formAssigneeId, setFormAssigneeId] = useState<string>("__none__");
+  const [formCompleted, setFormCompleted] = useState(false);
 
   // 할 일 목록 조회
   const fetchTodos = async () => {
@@ -166,6 +167,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
     setFormDueDate(undefined);
     setFormPriority("MEDIUM");
     setFormAssigneeId("__none__");
+    setFormCompleted(false);
   };
 
   // 할 일 추가
@@ -224,6 +226,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
             dueDate: formDueDate?.toISOString() || null,
             priority: formPriority,
             assigneeId: formAssigneeId === "__none__" ? null : formAssigneeId,
+            completed: formCompleted,
           }),
         }
       );
@@ -310,6 +313,7 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
     setFormDueDate(todo.dueDate ? new Date(todo.dueDate) : undefined);
     setFormPriority(todo.priority);
     setFormAssigneeId(todo.assignee?.id || "__none__");
+    setFormCompleted(!!todo.completedDate);
   };
 
   if (loading) {
@@ -629,6 +633,22 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
             <DialogTitle>할 일 수정</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* 완료 체크박스 */}
+            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+              <Checkbox
+                id="formCompleted"
+                checked={formCompleted}
+                onCheckedChange={(checked) => setFormCompleted(checked === true)}
+              />
+              <Label htmlFor="formCompleted" className="cursor-pointer font-medium">
+                완료됨
+              </Label>
+              {formCompleted && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  저장 시 완료 처리됩니다
+                </span>
+              )}
+            </div>
             <div className="space-y-2">
               <Label>
                 제목 <span className="text-red-500">*</span>

@@ -285,18 +285,18 @@ export default async function AdminProjectDetailPage({
 
       {/* Tabs - 진행 단계가 첫 번째 탭 (기본 선택) */}
       <Tabs defaultValue="tasks" className="space-y-4">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="tasks">진행 단계</TabsTrigger>
-          <TabsTrigger value="todos">할 일</TabsTrigger>
-          <TabsTrigger value="budget">예산</TabsTrigger>
-          <TabsTrigger value="overview">개요</TabsTrigger>
-          <TabsTrigger value="documents">
+        <TabsList className="flex w-full overflow-x-auto scrollbar-hide h-auto gap-1">
+          <TabsTrigger value="tasks" className="flex-shrink-0">진행 단계</TabsTrigger>
+          <TabsTrigger value="todos" className="flex-shrink-0">할 일</TabsTrigger>
+          <TabsTrigger value="budget" className="flex-shrink-0">예산</TabsTrigger>
+          <TabsTrigger value="overview" className="flex-shrink-0">개요</TabsTrigger>
+          <TabsTrigger value="documents" className="flex-shrink-0">
             문서 ({project.documents.length})
           </TabsTrigger>
-          <TabsTrigger value="members">
+          <TabsTrigger value="members" className="flex-shrink-0">
             멤버 ({project.members.length})
           </TabsTrigger>
-          <TabsTrigger value="activity">활동</TabsTrigger>
+          <TabsTrigger value="activity" className="flex-shrink-0">활동</TabsTrigger>
         </TabsList>
 
         {/* 진행 단계 탭 */}

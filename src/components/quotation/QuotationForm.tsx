@@ -237,8 +237,17 @@ export function QuotationForm({ quotationId, initialData }: QuotationFormProps) 
       case "ETC": priceList = etcs; break;
     }
 
+    // 단가표에 없는 경우 기본 빈 항목 추가
     if (priceList.length === 0) {
-      toast.error("해당 카테고리에 등록된 단가가 없습니다.");
+      setItems(prev => [...prev, {
+        category,
+        name: "기타 항목",
+        spec: null,
+        unit: "식",
+        quantity: 1,
+        unitPrice: 0,
+        amount: 0,
+      }]);
       return;
     }
 
@@ -416,8 +425,7 @@ export function QuotationForm({ quotationId, initialData }: QuotationFormProps) 
                 type="number"
                 value={moduleCount}
                 onChange={e => setModuleCount(e.target.value)}
-                readOnly
-                className="bg-muted"
+                min="1"
               />
             </div>
             <div className="space-y-2">
@@ -442,8 +450,7 @@ export function QuotationForm({ quotationId, initialData }: QuotationFormProps) 
                 type="number"
                 value={inverterCount}
                 onChange={e => setInverterCount(e.target.value)}
-                readOnly
-                className="bg-muted"
+                min="1"
               />
             </div>
             <div className="space-y-2">
@@ -473,6 +480,7 @@ export function QuotationForm({ quotationId, initialData }: QuotationFormProps) 
               <CardTitle>견적 항목</CardTitle>
               <div className="flex gap-1">
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => handleAddItem("ETC")}

@@ -511,11 +511,13 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                       <SortableBudgetItem key={item.id} item={item}>
                         <AccordionItem value={item.id} className="border rounded-lg px-4">
                           <AccordionTrigger className="hover:no-underline py-3">
-                            <div className="flex items-center justify-between flex-1 mr-2">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between flex-1 mr-2 gap-1 md:gap-2">
+                              {/* 1줄: 품목명 + VAT 배지 */}
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{item.category}</span>
                                 {item.vatIncluded && <Badge variant="outline" className="text-xs">VAT</Badge>}
                               </div>
+                              {/* 2줄: 계획/실제 */}
                               <div className="flex items-center gap-4 text-sm">
                                 <span className="text-muted-foreground">
                                   계획: {formatAmount(planned)}
@@ -523,10 +525,11 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                                 <span className="text-blue-600">
                                   실제: {formatAmount(actual)}
                                 </span>
-                                <Badge variant={diff >= 0 ? "default" : "destructive"} className="text-xs">
-                                  {diff >= 0 ? "+" : ""}{formatAmount(diff)}
-                                </Badge>
                               </div>
+                              {/* 3줄: 차이 */}
+                              <Badge variant={diff >= 0 ? "default" : "destructive"} className="text-xs">
+                                {diff >= 0 ? "+" : ""}{formatAmount(diff)}
+                              </Badge>
                             </div>
                           </AccordionTrigger>
                     <AccordionContent>
@@ -629,11 +632,13 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                     <SortableBudgetItem key={item.id} item={item}>
                       <AccordionItem value={item.id} className="border rounded-lg px-4">
                         <AccordionTrigger className="hover:no-underline py-3">
-                          <div className="flex items-center justify-between flex-1 mr-2">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between flex-1 mr-2 gap-1 md:gap-2">
+                            {/* 1줄: 품목명 + VAT 배지 */}
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{item.category}</span>
                               {item.vatIncluded && <Badge variant="outline" className="text-xs">VAT</Badge>}
                             </div>
+                            {/* 2줄: 계획/실제 */}
                             <div className="flex items-center gap-4 text-sm">
                               <span className="text-muted-foreground">
                                 계획: {formatAmount(planned)}
@@ -641,10 +646,11 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
                               <span className="text-red-600">
                                 실제: {formatAmount(actual)}
                               </span>
-                              <Badge variant={diff >= 0 ? "secondary" : "destructive"} className="text-xs">
-                                {diff >= 0 ? "절감 " : "초과 "}{formatAmount(Math.abs(diff))}
-                              </Badge>
                             </div>
+                            {/* 3줄: 차이 */}
+                            <Badge variant={diff >= 0 ? "secondary" : "destructive"} className="text-xs">
+                              {diff >= 0 ? "절감 " : "초과 "}{formatAmount(Math.abs(diff))}
+                            </Badge>
                           </div>
                         </AccordionTrigger>
                     <AccordionContent>
