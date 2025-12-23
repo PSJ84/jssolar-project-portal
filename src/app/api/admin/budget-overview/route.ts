@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getDisplayAmount } from "@/lib/vat-utils";
 
 // GET: 전체 프로젝트 예산 현황 (통합 솔루션용)
 export async function GET() {
@@ -31,34 +32,38 @@ export async function GET() {
       orderBy: { updatedAt: "desc" },
     });
 
-    // 프로젝트별 손익 계산
+    // 프로젝트별 손익 계산 (VAT 포함 금액으로)
     const projectBudgets = projects.map((project) => {
       const incomeItems = project.budgetItems.filter((item) => item.type === "INCOME");
       const expenseItems = project.budgetItems.filter((item) => item.type === "EXPENSE");
 
+      // 매출 계획 (VAT 포함)
       const totalIncomePlanned = incomeItems.reduce(
-        (sum, item) => sum + item.plannedAmount,
+        (sum, item) => sum + getDisplayAmount(item.plannedAmount, item.vatIncluded),
         0
       );
+      // 매출 실제 (VAT 포함, 완료된 거래만)
       const totalIncomeActual = incomeItems.reduce(
         (sum, item) =>
           sum +
           item.transactions
             .filter((tx) => tx.isCompleted)
-            .reduce((txSum, tx) => txSum + tx.amount, 0),
+            .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
         0
       );
 
+      // 지출 계획 (VAT 포함)
       const totalExpensePlanned = expenseItems.reduce(
-        (sum, item) => sum + item.plannedAmount,
+        (sum, item) => sum + getDisplayAmount(item.plannedAmount, item.vatIncluded),
         0
       );
+      // 지출 실제 (VAT 포함, 완료된 거래만)
       const totalExpenseActual = expenseItems.reduce(
         (sum, item) =>
           sum +
           item.transactions
             .filter((tx) => tx.isCompleted)
-            .reduce((txSum, tx) => txSum + tx.amount, 0),
+            .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
         0
       );
 
