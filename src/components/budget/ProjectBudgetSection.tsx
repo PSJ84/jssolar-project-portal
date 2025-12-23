@@ -166,8 +166,8 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
   const [loadingQuotations, setLoadingQuotations] = useState(false);
 
   // Form states
-  const [itemForm, setItemForm] = useState({ type: "INCOME" as "INCOME" | "EXPENSE", category: "", plannedAmount: "", vatIncluded: false, memo: "" });
-  const [txForm, setTxForm] = useState({ date: "", description: "", amount: "", vatIncluded: false, isCompleted: true });
+  const [itemForm, setItemForm] = useState({ type: "INCOME" as "INCOME" | "EXPENSE", category: "", plannedAmount: "", vatIncluded: true, memo: "" });
+  const [txForm, setTxForm] = useState({ date: "", description: "", amount: "", vatIncluded: true, isCompleted: true });
   const [saving, setSaving] = useState(false);
 
   // Drag and drop sensors
@@ -296,7 +296,7 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
       toast.success(editingItem ? "수정되었습니다" : "추가되었습니다");
       setItemDialogOpen(false);
       setEditingItem(null);
-      setItemForm({ type: "INCOME", category: "", plannedAmount: "", vatIncluded: false, memo: "" });
+      setItemForm({ type: "INCOME", category: "", plannedAmount: "", vatIncluded: true, memo: "" });
       fetchData();
     } catch (error) {
       toast.error("저장에 실패했습니다");
@@ -353,7 +353,7 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
       toast.success(editingTx.tx ? "수정되었습니다" : "추가되었습니다");
       setTxDialogOpen(false);
       setEditingTx(null);
-      setTxForm({ date: "", description: "", amount: "", vatIncluded: false, isCompleted: true });
+      setTxForm({ date: "", description: "", amount: "", vatIncluded: true, isCompleted: true });
       fetchData();
     } catch (error) {
       toast.error("저장에 실패했습니다");
@@ -393,7 +393,7 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
       });
     } else {
       setEditingItem(null);
-      setItemForm({ type: type || "INCOME", category: "", plannedAmount: "", vatIncluded: false, memo: "" });
+      setItemForm({ type: type || "INCOME", category: "", plannedAmount: "", vatIncluded: true, memo: "" });
     }
     setItemDialogOpen(true);
   };
@@ -414,7 +414,7 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
         date: new Date().toISOString().split("T")[0],
         description: "",
         amount: "",
-        vatIncluded: false,
+        vatIncluded: true,
         isCompleted: true,
       });
     }
