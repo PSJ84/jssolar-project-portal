@@ -276,12 +276,12 @@ export default async function ClientProjectDetailPage({
 
       {/* Tabs - 개요가 첫 번째 탭 */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">개요</TabsTrigger>
-          <TabsTrigger value="tasks">진행 단계</TabsTrigger>
-          <TabsTrigger value="construction">공정표</TabsTrigger>
-          <TabsTrigger value="quotations">견적서</TabsTrigger>
-          <TabsTrigger value="documents">
+        <TabsList className="flex w-full overflow-x-auto scrollbar-hide h-auto gap-1">
+          <TabsTrigger value="overview" className="flex-shrink-0">개요</TabsTrigger>
+          <TabsTrigger value="tasks" className="flex-shrink-0">진행 단계</TabsTrigger>
+          <TabsTrigger value="construction" className="flex-shrink-0">공정표</TabsTrigger>
+          <TabsTrigger value="quotations" className="flex-shrink-0">견적서</TabsTrigger>
+          <TabsTrigger value="documents" className="flex-shrink-0">
             문서 ({project.documents.length})
           </TabsTrigger>
         </TabsList>
