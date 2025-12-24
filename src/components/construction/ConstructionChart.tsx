@@ -99,9 +99,9 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
     } else {
       const minDate = min(dates);
       const maxDate = max(dates);
-      // 차트 시작일 = 가장 빠른 계획 시작일 기준
-      start = startOfWeek(addDays(minDate, -7), { weekStartsOn: 1 });
-      end = endOfWeek(addDays(maxDate, 14), { weekStartsOn: 1 });
+      // 차트 시작일 = 가장 빠른 계획 시작일이 포함된 주의 월요일
+      start = startOfWeek(minDate, { weekStartsOn: 1 });
+      end = endOfWeek(addDays(maxDate, 7), { weekStartsOn: 1 });
     }
 
     const weekCount = Math.ceil(differenceInDays(end, start) / 7);
