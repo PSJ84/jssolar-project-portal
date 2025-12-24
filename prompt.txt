@@ -1,0 +1,21 @@
+빌드 에러 수정 + 사업주 페이지 바로가기
+
+1. mobile-nav.tsx 빌드 에러 수정
+- 파일: src/components/layout/mobile-nav.tsx
+- 216번째 줄 근처 JSX 태그 닫힘 오류
+- SheetContent 또는 그 안의 태그가 제대로 안 닫힘
+- 태그 구조 확인하고 수정
+
+2. Admin 프로젝트에서 사업주 화면 바로가기
+- 파일: src/app/(dashboard)/admin/projects/[id]/page.tsx
+- 프로젝트 상세 상단에 "사업주 화면 보기" 버튼 추가
+- 클릭 시 /client/projects/[id] 새 탭으로 열기
+- 아이콘: ExternalLink 또는 Eye
+
+3. Client 페이지 권한 수정
+- 파일: src/app/(dashboard)/client/projects/[id]/page.tsx
+- ADMIN, SUPER_ADMIN도 접근 가능하게
+- 기존: CLIENT만 허용
+- 변경: CLIENT, ADMIN, SUPER_ADMIN 허용
+
+커밋: "fix: mobile-nav 빌드 에러 + admin에서 사업주 화면 바로가기"

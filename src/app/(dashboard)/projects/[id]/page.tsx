@@ -48,17 +48,26 @@ const CATEGORY_ORDER: DocumentCategory[] = [
   "OTHER",
 ];
 
-async function getProject(id: string, userId: string) {
+async function getProject(id: string, userId: string, userRole: string, organizationId?: string | null) {
   try {
+    // ADMIN/SUPER_ADMIN은 자신의 조직 프로젝트에 접근 가능
+    const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
+    const isSuperAdmin = userRole === "SUPER_ADMIN";
+
+    // where 조건 구성
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const whereCondition: any = { id };
+
+    if (!isSuperAdmin) {
+      if (isAdmin && organizationId) {
+        whereCondition.organizationId = organizationId;
+      } else if (!isAdmin) {
+        whereCondition.members = { some: { userId } };
+      }
+    }
+
     const project = await prisma.project.findFirst({
-      where: {
-        id: id,
-        members: {
-          some: {
-            userId: userId,
-          },
-        },
-      },
+      where: whereCondition,
       include: {
         members: {
           include: {
@@ -146,7 +155,12 @@ export default async function ClientProjectDetailPage({
 
   // Next.js 16: await params
   const { id } = await params;
-  const project = await getProject(id, session.user.id);
+  const project = await getProject(
+    id,
+    session.user.id,
+    session.user.role,
+    session.user.organizationId
+  );
 
   if (!project) {
     redirect("/projects");
