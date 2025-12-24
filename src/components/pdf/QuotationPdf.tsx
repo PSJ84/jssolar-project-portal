@@ -6,20 +6,17 @@ import {
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
-import path from "path";
 
-// 한글 폰트 등록 (파일 시스템 경로 사용)
-const fontPath = path.join(process.cwd(), "public", "fonts");
-
+// 한글 폰트 등록 (Google Fonts static CDN - TTF 형식)
 Font.register({
   family: "NotoSansKR",
   fonts: [
     {
-      src: path.join(fontPath, "NotoSansKR-Regular.ttf"),
+      src: "https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuoyeLTq8H4hfeE.ttf",
       fontWeight: 400,
     },
     {
-      src: path.join(fontPath, "NotoSansKR-Bold.ttf"),
+      src: "https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuozHrTq8H4hfeE.ttf",
       fontWeight: 700,
     },
   ],
