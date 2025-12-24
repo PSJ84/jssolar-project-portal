@@ -307,8 +307,9 @@ export default async function AdminProjectDetailPage({
 
       {/* Tabs - URL의 tab 파라미터 또는 진행 단계가 기본 선택 */}
       <Tabs defaultValue={initialTab || "tasks"} className="space-y-4">
-        <div className="overflow-x-auto scrollbar-hide">
-          <TabsList className="inline-flex w-max h-auto gap-1">
+        <div className="-mx-4 md:mx-0">
+          <div className="overflow-x-auto scrollbar-hide">
+            <TabsList className="inline-flex w-max h-auto gap-1 px-4 md:px-0">
             <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">진행 단계</TabsTrigger>
             <TabsTrigger value="construction" className="flex-shrink-0 flex-none">공정표</TabsTrigger>
             <TabsTrigger value="todos" className="flex-shrink-0 flex-none">할 일</TabsTrigger>
@@ -322,7 +323,8 @@ export default async function AdminProjectDetailPage({
               멤버 ({project.members.length})
             </TabsTrigger>
             <TabsTrigger value="activity" className="flex-shrink-0 flex-none">활동</TabsTrigger>
-          </TabsList>
+            </TabsList>
+          </div>
         </div>
 
         {/* 진행 단계 탭 */}
