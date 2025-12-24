@@ -39,10 +39,13 @@ function formatRelativeTime(date: Date): string {
 
 export default async function AdminProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+  const { tab: initialTab } = await searchParams;
 
   const project = await prisma.project.findUnique({
     where: { id },
@@ -283,8 +286,8 @@ export default async function AdminProjectDetailPage({
         );
       })()}
 
-      {/* Tabs - 진행 단계가 첫 번째 탭 (기본 선택) */}
-      <Tabs defaultValue="tasks" className="space-y-4">
+      {/* Tabs - URL의 tab 파라미터 또는 진행 단계가 기본 선택 */}
+      <Tabs defaultValue={initialTab || "tasks"} className="space-y-4">
         <TabsList className="flex w-full overflow-x-auto scrollbar-hide h-auto gap-1">
           <TabsTrigger value="tasks" className="flex-shrink-0">진행 단계</TabsTrigger>
           <TabsTrigger value="todos" className="flex-shrink-0">할 일</TabsTrigger>

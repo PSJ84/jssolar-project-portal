@@ -204,8 +204,8 @@ export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false
   const highlightTaskId = searchParams.get("taskId");
   const shouldExpand = searchParams.get("expand") === "true";
 
-  // ADMIN용 진행단계 접기/펼치기 (기본: 접힘, expand=true면 펼침)
-  const [isTaskListExpanded, setIsTaskListExpanded] = useState(shouldExpand || false);
+  // ADMIN용 진행단계 접기/펼치기 (기본: 펼침)
+  const [isTaskListExpanded, setIsTaskListExpanded] = useState(true);
 
   const [showHidden, setShowHidden] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(
