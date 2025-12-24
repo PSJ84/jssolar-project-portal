@@ -14,6 +14,7 @@ import { ProjectOverviewEdit } from "@/components/project/project-overview-edit"
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 import { TodoList } from "@/components/todos/TodoList";
 import { ProjectBudgetSection } from "@/components/budget/ProjectBudgetSection";
+import { ProjectQuotationList } from "@/components/quotation/ProjectQuotationList";
 import { calculateWeightedProgress } from "@/lib/progress-utils";
 
 const statusLabels: Record<ProjectStatus, string> = {
@@ -291,6 +292,7 @@ export default async function AdminProjectDetailPage({
         <TabsList className="flex w-full overflow-x-auto scrollbar-hide h-auto gap-1">
           <TabsTrigger value="tasks" className="flex-shrink-0">진행 단계</TabsTrigger>
           <TabsTrigger value="todos" className="flex-shrink-0">할 일</TabsTrigger>
+          <TabsTrigger value="quotations" className="flex-shrink-0">견적서</TabsTrigger>
           <TabsTrigger value="budget" className="flex-shrink-0">예산</TabsTrigger>
           <TabsTrigger value="overview" className="flex-shrink-0">개요</TabsTrigger>
           <TabsTrigger value="documents" className="flex-shrink-0">
@@ -364,6 +366,11 @@ export default async function AdminProjectDetailPage({
               updatedAt: todo.updatedAt.toISOString(),
             }))}
           />
+        </TabsContent>
+
+        {/* 견적서 탭 */}
+        <TabsContent value="quotations" className="space-y-4">
+          <ProjectQuotationList projectId={project.id} isAdmin={true} />
         </TabsContent>
 
         {/* 예산 탭 */}

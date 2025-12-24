@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 import { ClientProgressSummary } from "@/components/tasks/ClientProgressSummary";
-import { TodoList } from "@/components/todos/TodoList";
+import { ProjectQuotationList } from "@/components/quotation/ProjectQuotationList";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -114,18 +114,6 @@ async function getProject(id: string, userId: string) {
             },
           },
           orderBy: { sortOrder: "asc" },
-        },
-        // Todos - 미리 로드하여 탭 전환 시 로딩 최적화
-        todos: {
-          include: {
-            assignee: { select: { id: true, name: true } },
-            createdBy: { select: { id: true, name: true } },
-            completedBy: { select: { id: true, name: true } },
-          },
-          orderBy: [
-            { completedDate: "asc" },
-            { dueDate: "asc" },
-          ],
         },
       },
     });
@@ -285,7 +273,7 @@ export default async function ClientProjectDetailPage({
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
           <TabsTrigger value="tasks">진행 단계</TabsTrigger>
-          <TabsTrigger value="todos">할 일</TabsTrigger>
+          <TabsTrigger value="quotations">견적서</TabsTrigger>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
@@ -336,25 +324,9 @@ export default async function ClientProjectDetailPage({
           />
         </TabsContent>
 
-        {/* 할 일 탭 */}
-        <TabsContent value="todos" className="space-y-4">
-          <TodoList
-            projectId={project.id}
-            isAdmin={false}
-            initialTodos={project.todos.map((todo) => ({
-              id: todo.id,
-              title: todo.title,
-              description: todo.description,
-              dueDate: todo.dueDate?.toISOString() ?? null,
-              priority: todo.priority,
-              assignee: todo.assignee,
-              createdBy: todo.createdBy,
-              completedBy: todo.completedBy,
-              completedDate: todo.completedDate?.toISOString() ?? null,
-              createdAt: todo.createdAt.toISOString(),
-              updatedAt: todo.updatedAt.toISOString(),
-            }))}
-          />
+        {/* 견적서 탭 */}
+        <TabsContent value="quotations" className="space-y-4">
+          <ProjectQuotationList projectId={project.id} isAdmin={false} />
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
