@@ -115,6 +115,15 @@ async function getProject(id: string, userId: string) {
           },
           orderBy: { sortOrder: "asc" },
         },
+        // 견적서 (초기 로드)
+        quotations: {
+          include: {
+            items: {
+              orderBy: { sortOrder: "asc" },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
     return project;
@@ -241,40 +250,12 @@ export default async function ClientProjectDetailPage({
         </div>
       </div>
 
-      {/* 진행률 요약 - 항상 표시 (가중치 기반) */}
-      <ClientProgressSummary
-        tasks={project.tasks.map((task) => ({
-          id: task.id,
-          name: task.name,
-          sortOrder: task.sortOrder,
-          isActive: task.isActive,
-          startDate: task.startDate?.toISOString() ?? null,
-          dueDate: task.dueDate?.toISOString() ?? null,
-          completedDate: task.completedDate?.toISOString() ?? null,
-          isPermitTask: task.isPermitTask,
-          submittedDate: task.submittedDate?.toISOString() ?? null,
-          processingDays: task.processingDays,
-          phase: task.phase,
-          children: task.children.map((child) => ({
-            id: child.id,
-            name: child.name,
-            sortOrder: child.sortOrder,
-            isActive: child.isActive,
-            startDate: child.startDate?.toISOString() ?? null,
-            dueDate: child.dueDate?.toISOString() ?? null,
-            completedDate: child.completedDate?.toISOString() ?? null,
-            phase: child.phase,
-            children: [],
-          })),
-        }))}
-      />
-
-      {/* Tabs - 진행 단계가 첫 번째 탭 (기본 선택) */}
-      <Tabs defaultValue="tasks" className="space-y-4">
+      {/* Tabs - 개요가 첫 번째 탭 */}
+      <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="tasks">진행 단계</TabsTrigger>
           <TabsTrigger value="quotations">견적서</TabsTrigger>
-          <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
           </TabsTrigger>
@@ -282,6 +263,34 @@ export default async function ClientProjectDetailPage({
 
         {/* 진행 단계 탭 */}
         <TabsContent value="tasks" className="space-y-4">
+          {/* 진행률 요약 - 진행 단계 탭 안으로 이동 */}
+          <ClientProgressSummary
+            tasks={project.tasks.map((task) => ({
+              id: task.id,
+              name: task.name,
+              sortOrder: task.sortOrder,
+              isActive: task.isActive,
+              startDate: task.startDate?.toISOString() ?? null,
+              dueDate: task.dueDate?.toISOString() ?? null,
+              completedDate: task.completedDate?.toISOString() ?? null,
+              isPermitTask: task.isPermitTask,
+              submittedDate: task.submittedDate?.toISOString() ?? null,
+              processingDays: task.processingDays,
+              phase: task.phase,
+              children: task.children.map((child) => ({
+                id: child.id,
+                name: child.name,
+                sortOrder: child.sortOrder,
+                isActive: child.isActive,
+                startDate: child.startDate?.toISOString() ?? null,
+                dueDate: child.dueDate?.toISOString() ?? null,
+                completedDate: child.completedDate?.toISOString() ?? null,
+                phase: child.phase,
+                children: [],
+              })),
+            }))}
+            compact
+          />
           <TaskListV2
             projectId={project.id}
             tasks={project.tasks.map((task) => {
@@ -321,12 +330,50 @@ export default async function ClientProjectDetailPage({
             isAdmin={false}
             isClient={true}
             hideProgressSummary={true}
+            defaultAllExpanded={true}
           />
         </TabsContent>
 
         {/* 견적서 탭 */}
         <TabsContent value="quotations" className="space-y-4">
-          <ProjectQuotationList projectId={project.id} isAdmin={false} />
+          <ProjectQuotationList
+            projectId={project.id}
+            isAdmin={false}
+            initialQuotations={project.quotations.map((q) => ({
+              id: q.id,
+              quotationNumber: q.quotationNumber,
+              customerName: q.customerName,
+              projectName: q.projectName,
+              quotationDate: q.quotationDate.toISOString(),
+              totalAmount: q.totalAmount,
+              vatIncluded: q.vatIncluded,
+              grandTotal: q.grandTotal,
+              status: q.status,
+            }))}
+            initialDetails={project.quotations.map((q) => ({
+              id: q.id,
+              quotationNumber: q.quotationNumber,
+              customerName: q.customerName,
+              projectName: q.projectName,
+              quotationDate: q.quotationDate.toISOString(),
+              subtotal: q.subtotal,
+              roundingAmount: q.roundingAmount,
+              totalAmount: q.totalAmount,
+              vatIncluded: q.vatIncluded,
+              grandTotal: q.grandTotal,
+              status: q.status,
+              specialNotes: q.specialNotes,
+              items: q.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                unit: item.unit,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                amount: item.amount,
+                note: item.note,
+              })),
+            }))}
+          />
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">

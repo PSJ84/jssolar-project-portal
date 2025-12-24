@@ -45,14 +45,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   companyName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 700,
     color: "#2563eb",
+    marginBottom: 4,
   },
   companySubtext: {
-    fontSize: 7,
+    fontSize: 8,
     color: "#666",
-    marginTop: 2,
   },
   headerRight: {
     textAlign: "right",

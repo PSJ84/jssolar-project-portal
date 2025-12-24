@@ -64,6 +64,8 @@ interface Quotation {
 interface ProjectQuotationListProps {
   projectId: string;
   isAdmin?: boolean;
+  initialQuotations?: Quotation[];
+  initialDetails?: QuotationDetail[];
 }
 
 const statusLabels: Record<QuotationStatus, string> = {
@@ -82,16 +84,28 @@ const statusVariants: Record<QuotationStatus, "default" | "secondary" | "outline
   EXPIRED: "outline",
 };
 
-export function ProjectQuotationList({ projectId, isAdmin = false }: ProjectQuotationListProps) {
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function ProjectQuotationList({
+  projectId,
+  isAdmin = false,
+  initialQuotations,
+  initialDetails,
+}: ProjectQuotationListProps) {
+  const [quotations, setQuotations] = useState<Quotation[]>(initialQuotations || []);
+  const [isLoading, setIsLoading] = useState(!initialQuotations);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [detailsCache, setDetailsCache] = useState<Record<string, QuotationDetail>>({});
+  const [detailsCache, setDetailsCache] = useState<Record<string, QuotationDetail>>(() => {
+    if (initialDetails) {
+      return Object.fromEntries(initialDetails.map(d => [d.id, d]));
+    }
+    return {};
+  });
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchQuotations();
-  }, [projectId]);
+    if (!initialQuotations) {
+      fetchQuotations();
+    }
+  }, [projectId, initialQuotations]);
 
   const fetchQuotations = async () => {
     try {

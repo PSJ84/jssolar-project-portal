@@ -62,6 +62,7 @@ interface TaskListV2Props {
   isAdmin?: boolean;
   isClient?: boolean;
   hideProgressSummary?: boolean;
+  defaultAllExpanded?: boolean;
 }
 
 // D-day 계산
@@ -196,7 +197,7 @@ function formatSubmittedInfo(submittedDate: string, dueDate: string | null): str
   return `접수: ${submittedStr}`;
 }
 
-export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false, hideProgressSummary = false }: TaskListV2Props) {
+export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false, hideProgressSummary = false, defaultAllExpanded = false }: TaskListV2Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -209,8 +210,12 @@ export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false
 
   const [showHidden, setShowHidden] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(
-    // 완료되지 않은 태스크만 기본으로 펼침
-    () => new Set(tasks.filter((t) => !t.completedDate).map((t) => t.id))
+    // defaultAllExpanded면 모든 태스크 펼침, 아니면 완료되지 않은 태스크만 기본으로 펼침
+    () => new Set(
+      defaultAllExpanded
+        ? tasks.map((t) => t.id)
+        : tasks.filter((t) => !t.completedDate).map((t) => t.id)
+    )
   );
   const [localTasks, setLocalTasks] = useState<TaskWithChildren[]>(tasks);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());

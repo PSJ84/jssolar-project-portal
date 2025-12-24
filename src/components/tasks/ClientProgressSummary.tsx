@@ -31,6 +31,7 @@ interface TaskWithChildren {
 
 interface ClientProgressSummaryProps {
   tasks: TaskWithChildren[];
+  compact?: boolean;
 }
 
 // D-day 숫자 계산 (정렬용)
@@ -73,7 +74,7 @@ function formatDate(dateStr: string): string {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
+export function ClientProgressSummary({ tasks, compact = false }: ClientProgressSummaryProps) {
   // 활성 태스크만
   const activeTasks = tasks.filter(t => t.isActive);
 
@@ -111,36 +112,39 @@ export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
   const nextWaiting = waiting.sort((a, b) => a.sortOrder - b.sortOrder)[0];
 
   return (
-    <div className="space-y-4 mb-6">
+    <div className={cn("space-y-3", !compact && "mb-6")}>
       {/* 전체 진행률 */}
       <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="space-y-3">
+        <CardContent className={cn(compact ? "pt-3 pb-3" : "pt-4 pb-4")}>
+          <div className={cn(compact ? "space-y-2" : "space-y-3")}>
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">전체 진행률</span>
               <span className="text-muted-foreground">
                 {progressPercent}% ({completedCount}/{total} 완료)
               </span>
             </div>
-            <Progress value={progressPercent} className="h-3" />
+            <Progress value={progressPercent} className={cn(compact ? "h-2" : "h-3")} />
 
             {/* 상태별 카운트 - 모바일에서 2줄로 */}
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 pt-2 text-sm">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>완료 {completed.length}</span>
+            <div className={cn(
+              "flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm",
+              !compact && "pt-2"
+            )}>
+              <div className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <span className="text-xs">완료 {completed.length}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <FileCheck className="h-4 w-4 text-blue-500" />
-                <span>접수 {submitted.length}</span>
+              <div className="flex items-center gap-1">
+                <FileCheck className="h-3.5 w-3.5 text-blue-500" />
+                <span className="text-xs">접수 {submitted.length}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-yellow-500" />
-                <span>진행 {inProgress.length}</span>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-yellow-500" />
+                <span className="text-xs">진행 {inProgress.length}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Circle className="h-4 w-4 text-gray-300" />
-                <span>대기 {waiting.length}</span>
+              <div className="flex items-center gap-1">
+                <Circle className="h-3.5 w-3.5 text-gray-300" />
+                <span className="text-xs">대기 {waiting.length}</span>
               </div>
             </div>
           </div>
@@ -150,16 +154,16 @@ export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
       {/* 현재 진행중 + 다음 대기 */}
       {(currentTasks.length > 0 || nextWaiting) && (
         <Card>
-          <CardContent className="pt-4 pb-4">
+          <CardContent className={cn(compact ? "pt-3 pb-3" : "pt-4 pb-4")}>
             {/* 현재 진행중 */}
             {currentTasks.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <span className="text-orange-500">🔥</span>
                   현재 진행중 ({currentTasks.length})
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {currentTasks.map((task) => {
                     const status = getTaskStatus(task);
                     const dday = getDdayText(task.dueDate);
@@ -168,23 +172,23 @@ export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
                       <div
                         key={task.id}
                         className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg border",
+                          "flex items-center gap-2 p-2 rounded-lg border",
                           status === "submitted" && "bg-blue-50 border-blue-200",
                           status === "in_progress" && "bg-yellow-50 border-yellow-200"
                         )}
                       >
                         {/* 아이콘 */}
                         {status === "submitted" ? (
-                          <FileCheck className="h-5 w-5 text-blue-500 shrink-0" />
+                          <FileCheck className="h-4 w-4 text-blue-500 shrink-0" />
                         ) : (
-                          <Clock className="h-5 w-5 text-yellow-500 shrink-0" />
+                          <Clock className="h-4 w-4 text-yellow-500 shrink-0" />
                         )}
 
                         {/* 내용 */}
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{task.name}</div>
-                          {status === "submitted" && task.submittedDate && (
-                            <div className="text-sm text-muted-foreground">
+                          <div className="text-sm font-medium truncate">{task.name}</div>
+                          {!compact && status === "submitted" && task.submittedDate && (
+                            <div className="text-xs text-muted-foreground">
                               접수: {formatDate(task.submittedDate)}
                               {task.dueDate && ` → 완료예정: ${formatDate(task.dueDate)}`}
                             </div>
@@ -193,7 +197,7 @@ export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
 
                         {/* 상태 배지 */}
                         <Badge className={cn(
-                          "shrink-0",
+                          "shrink-0 text-xs",
                           status === "submitted" && "bg-blue-500",
                           status === "in_progress" && "bg-yellow-500"
                         )}>
@@ -205,7 +209,7 @@ export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
                           <Badge
                             variant={dday.isOverdue ? "destructive" : "outline"}
                             className={cn(
-                              "shrink-0",
+                              "shrink-0 text-xs",
                               dday.isSoon && !dday.isOverdue && "bg-yellow-500 text-white border-yellow-500"
                             )}
                           >
@@ -222,18 +226,18 @@ export function ClientProgressSummary({ tasks }: ClientProgressSummaryProps) {
 
             {/* 구분선 */}
             {currentTasks.length > 0 && nextWaiting && (
-              <div className="border-t my-3" />
+              <div className="border-t my-2" />
             )}
 
             {/* 다음 대기 */}
             {nextWaiting && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
-                <ArrowRight className="h-5 w-5 text-gray-400 shrink-0" />
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-200">
+                <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-muted-foreground">다음 단계</div>
-                  <div className="font-medium truncate">{nextWaiting.name}</div>
+                  <div className="text-xs text-muted-foreground">다음 단계</div>
+                  <div className="text-sm font-medium truncate">{nextWaiting.name}</div>
                 </div>
-                <Badge variant="outline" className="shrink-0 bg-gray-100">
+                <Badge variant="outline" className="shrink-0 text-xs bg-gray-100">
                   대기
                 </Badge>
               </div>
