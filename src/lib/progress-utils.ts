@@ -1,11 +1,27 @@
 /**
  * 가중치 기반 진행률 계산 유틸리티
- * 시공(CONSTRUCTION) 60%, 나머지(PERMIT, OTHER) 40%
+ *
+ * v2: 시공(CONSTRUCTION) 60%, 나머지(PERMIT, OTHER) 40%
+ * v3: 인허가(PERMIT) 20%, 시공(공정표) 60%, 준공(COMPLETION) 20%
  */
 
 interface TaskForProgress {
-  phase: "PERMIT" | "CONSTRUCTION" | "OTHER";
+  phase: "PERMIT" | "CONSTRUCTION" | "COMPLETION" | "OTHER";
   completedDate: Date | null;
+}
+
+interface ConstructionItemForProgress {
+  status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "DELAYED";
+  progress: number;
+}
+
+export interface DashboardProgress {
+  permit: { total: number; completed: number; percent: number };
+  construction: { total: number; completed: number; percent: number };
+  completion: { total: number; completed: number; percent: number };
+  totalProgress: number;
+  currentPhase: "PERMIT" | "CONSTRUCTION" | "COMPLETION";
+  isDelayed: boolean;
 }
 
 /**
@@ -89,5 +105,107 @@ export function getProgressDetails(tasks: TaskForProgress[]): {
           : 0,
     },
     weightedProgress: calculateWeightedProgress(tasks),
+  };
+}
+
+/**
+ * 대시보드용 3단계 진행률 계산
+ * - 인허가(PERMIT): 20%
+ * - 시공(공정표 기반): 60%
+ * - 준공(COMPLETION): 20%
+ *
+ * @param tasks 진행단계 태스크 목록
+ * @param constructionItems 공정표 항목 목록
+ * @returns 대시보드 진행률 정보
+ */
+export function calculateDashboardProgress(
+  tasks: TaskForProgress[],
+  constructionItems: ConstructionItemForProgress[]
+): DashboardProgress {
+  // 인허가 태스크
+  const permitTasks = tasks.filter(
+    (t) => t.phase === "PERMIT" || t.phase === "OTHER"
+  );
+  const permitCompleted = permitTasks.filter((t) => t.completedDate).length;
+  const permitPercent =
+    permitTasks.length > 0
+      ? Math.round((permitCompleted / permitTasks.length) * 100)
+      : 0;
+
+  // 시공 진행률 (공정표 기반)
+  const constructionCompleted = constructionItems.filter(
+    (item) => item.status === "COMPLETED"
+  ).length;
+  const constructionPercent =
+    constructionItems.length > 0
+      ? Math.round((constructionCompleted / constructionItems.length) * 100)
+      : 0;
+
+  // 준공 태스크
+  const completionTasks = tasks.filter((t) => t.phase === "COMPLETION");
+  const completionCompleted = completionTasks.filter(
+    (t) => t.completedDate
+  ).length;
+  const completionPercent =
+    completionTasks.length > 0
+      ? Math.round((completionCompleted / completionTasks.length) * 100)
+      : 0;
+
+  // 가중치 적용 전체 진행률
+  const PERMIT_WEIGHT = 20;
+  const CONSTRUCTION_WEIGHT = 60;
+  const COMPLETION_WEIGHT = 20;
+
+  let totalProgress = 0;
+
+  // 인허가 (20%)
+  if (permitTasks.length > 0) {
+    totalProgress += (permitPercent / 100) * PERMIT_WEIGHT;
+  }
+
+  // 시공 (60%)
+  if (constructionItems.length > 0) {
+    totalProgress += (constructionPercent / 100) * CONSTRUCTION_WEIGHT;
+  }
+
+  // 준공 (20%)
+  if (completionTasks.length > 0) {
+    totalProgress += (completionPercent / 100) * COMPLETION_WEIGHT;
+  }
+
+  // 현재 단계 판단
+  let currentPhase: "PERMIT" | "CONSTRUCTION" | "COMPLETION" = "PERMIT";
+  if (permitPercent >= 100) {
+    currentPhase = "CONSTRUCTION";
+  }
+  if (constructionPercent >= 100) {
+    currentPhase = "COMPLETION";
+  }
+  if (completionPercent >= 100) {
+    currentPhase = "COMPLETION";
+  }
+
+  // 지연 여부 (공정표에 DELAYED 상태가 있으면)
+  const isDelayed = constructionItems.some((item) => item.status === "DELAYED");
+
+  return {
+    permit: {
+      total: permitTasks.length,
+      completed: permitCompleted,
+      percent: permitPercent,
+    },
+    construction: {
+      total: constructionItems.length,
+      completed: constructionCompleted,
+      percent: constructionPercent,
+    },
+    completion: {
+      total: completionTasks.length,
+      completed: completionCompleted,
+      percent: completionPercent,
+    },
+    totalProgress: Math.round(totalProgress),
+    currentPhase,
+    isDelayed,
   };
 }

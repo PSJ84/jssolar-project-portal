@@ -423,8 +423,8 @@ export function ConstructionScheduleEditor({
 
               {expandedPhases.has(phase.id) && phase.items.length > 0 && (
                 <CardContent className="pt-0 px-4 pb-3">
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="w-full text-sm">
+                  <div className="border rounded-md overflow-x-auto">
+                    <table className="w-full text-sm min-w-[600px]">
                       <thead className="bg-muted/50">
                         <tr>
                           <th className="text-left py-2 px-3 font-medium">공정명</th>
