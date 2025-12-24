@@ -16,8 +16,7 @@ import { TodoList } from "@/components/todos/TodoList";
 import { ProjectBudgetSection } from "@/components/budget/ProjectBudgetSection";
 import { ProjectQuotationList } from "@/components/quotation/ProjectQuotationList";
 import { calculateWeightedProgress } from "@/lib/progress-utils";
-import { ConstructionScheduleEditor } from "@/components/construction/ConstructionScheduleEditor";
-import { ConstructionChart } from "@/components/construction/ConstructionChart";
+import { ConstructionSection } from "@/components/construction/ConstructionSection";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -368,30 +367,10 @@ export default async function AdminProjectDetailPage({
 
         {/* 공정표 탭 */}
         <TabsContent value="construction" className="space-y-6">
-          <ConstructionScheduleEditor
+          <ConstructionSection
             projectId={project.id}
+            isAdmin={true}
             initialPhases={project.constructionPhases.map((phase) => ({
-              id: phase.id,
-              projectId: phase.projectId,
-              name: phase.name,
-              sortOrder: phase.sortOrder,
-              items: phase.items.map((item) => ({
-                id: item.id,
-                phaseId: item.phaseId,
-                name: item.name,
-                startDate: item.startDate?.toISOString() ?? null,
-                endDate: item.endDate?.toISOString() ?? null,
-                actualStart: item.actualStart?.toISOString() ?? null,
-                actualEnd: item.actualEnd?.toISOString() ?? null,
-                progress: item.progress,
-                status: item.status,
-                memo: item.memo,
-                sortOrder: item.sortOrder,
-              })),
-            }))}
-          />
-          <ConstructionChart
-            phases={project.constructionPhases.map((phase) => ({
               id: phase.id,
               projectId: phase.projectId,
               name: phase.name,

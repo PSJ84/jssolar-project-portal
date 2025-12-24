@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 
-interface ConstructionItem {
+export interface ConstructionItem {
   id: string;
   phaseId: string;
   name: string;
@@ -50,7 +50,7 @@ interface ConstructionItem {
   sortOrder: number;
 }
 
-interface ConstructionPhase {
+export interface ConstructionPhase {
   id: string;
   projectId: string;
   name: string;
@@ -61,6 +61,7 @@ interface ConstructionPhase {
 interface ConstructionScheduleEditorProps {
   projectId: string;
   initialPhases?: ConstructionPhase[];
+  onPhasesChange?: (phases: ConstructionPhase[]) => void;
 }
 
 const statusOptions = [
@@ -73,8 +74,18 @@ const statusOptions = [
 export function ConstructionScheduleEditor({
   projectId,
   initialPhases = [],
+  onPhasesChange,
 }: ConstructionScheduleEditorProps) {
-  const [phases, setPhases] = useState<ConstructionPhase[]>(initialPhases);
+  const [phases, setPhasesInternal] = useState<ConstructionPhase[]>(initialPhases);
+
+  // 상태 변경 시 콜백 호출
+  const setPhases = (updater: ConstructionPhase[] | ((prev: ConstructionPhase[]) => ConstructionPhase[])) => {
+    setPhasesInternal((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      onPhasesChange?.(next);
+      return next;
+    });
+  };
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(
     new Set(initialPhases.map((p) => p.id))
   );

@@ -18,6 +18,13 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Calendar } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ConstructionItem {
   id: string;
@@ -52,9 +59,12 @@ const statusColors = {
   DELAYED: { bg: "bg-red-100", text: "text-red-700", bar: "bg-red-500" },
 };
 
+type DateUnit = "daily" | "weekly";
+
 export function ConstructionChart({ phases }: ConstructionChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolledToToday, setScrolledToToday] = useState(false);
+  const [dateUnit, setDateUnit] = useState<DateUnit>("weekly");
   const today = new Date();
 
   // 전체 항목을 flat하게 만들기
@@ -69,17 +79,8 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
   }, [phases]);
 
   // 전체 기간 계산
-  const { chartStart, chartEnd, weeks } = useMemo(() => {
-    if (allItems.length === 0) {
-      const start = startOfWeek(today, { weekStartsOn: 1 });
-      const end = addWeeks(start, 12);
-      return {
-        chartStart: start,
-        chartEnd: end,
-        weeks: Array.from({ length: 12 }, (_, i) => addWeeks(start, i)),
-      };
-    }
-
+  const { chartStart, chartEnd, weeks, days } = useMemo(() => {
+    // 날짜 수집
     const dates: Date[] = [];
     allItems.forEach(({ item }) => {
       if (item.startDate) dates.push(new Date(item.startDate));
@@ -88,37 +89,42 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
       if (item.actualEnd) dates.push(new Date(item.actualEnd));
     });
 
+    // 기본값 또는 공정 날짜 기준으로 시작/종료 계산
+    let start: Date;
+    let end: Date;
+
     if (dates.length === 0) {
-      const start = startOfWeek(today, { weekStartsOn: 1 });
-      const end = addWeeks(start, 12);
-      return {
-        chartStart: start,
-        chartEnd: end,
-        weeks: Array.from({ length: 12 }, (_, i) => addWeeks(start, i)),
-      };
+      start = startOfWeek(today, { weekStartsOn: 1 });
+      end = addWeeks(start, dateUnit === "daily" ? 4 : 12);
+    } else {
+      const minDate = min(dates);
+      const maxDate = max(dates);
+      // 차트 시작일 = 가장 빠른 계획 시작일 기준
+      start = startOfWeek(addDays(minDate, -7), { weekStartsOn: 1 });
+      end = endOfWeek(addDays(maxDate, 14), { weekStartsOn: 1 });
     }
-
-    dates.push(today);
-    const minDate = min(dates);
-    const maxDate = max(dates);
-
-    const start = startOfWeek(addDays(minDate, -7), { weekStartsOn: 1 });
-    const end = endOfWeek(addDays(maxDate, 14), { weekStartsOn: 1 });
 
     const weekCount = Math.ceil(differenceInDays(end, start) / 7);
     const weekArray = Array.from({ length: weekCount }, (_, i) =>
       addWeeks(start, i)
     );
 
+    // 일 단위 배열 생성
+    const dayCount = differenceInDays(end, start) + 1;
+    const dayArray = Array.from({ length: dayCount }, (_, i) =>
+      addDays(start, i)
+    );
+
     return {
       chartStart: start,
       chartEnd: end,
       weeks: weekArray,
+      days: dayArray,
     };
-  }, [allItems, today]);
+  }, [allItems, today, dateUnit]);
 
   const totalDays = differenceInDays(chartEnd, chartStart) + 1;
-  const dayWidth = 20; // px per day
+  const dayWidth = dateUnit === "daily" ? 30 : 20; // 일 단위는 더 넓게
   const chartWidth = totalDays * dayWidth;
 
   // 오늘 위치로 스크롤
@@ -154,8 +160,19 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
   return (
     <Card>
       <CardHeader className="py-3 px-4 border-b">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">공정표</CardTitle>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-base">공정표</CardTitle>
+            <Select value={dateUnit} onValueChange={(v) => setDateUnit(v as DateUnit)}>
+              <SelectTrigger className="w-24 h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">일 단위</SelectItem>
+                <SelectItem value="weekly">주 단위</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-3 text-xs">
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded bg-gray-300 opacity-50" />
@@ -208,33 +225,62 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
           {/* 오른쪽 차트 영역 */}
           <div className="flex-1 overflow-x-auto" ref={scrollRef}>
             <div style={{ width: chartWidth, minWidth: "100%" }}>
-              {/* 헤더 - 주 단위 */}
+              {/* 헤더 */}
               <div className="h-12 border-b flex bg-muted/50">
-                {weeks.map((week, i) => {
-                  const weekEnd = addDays(week, 6);
-                  const isCurrentWeek = isWithinInterval(today, {
-                    start: week,
-                    end: weekEnd,
-                  });
+                {dateUnit === "weekly" ? (
+                  // 주 단위 헤더
+                  weeks.map((week, i) => {
+                    const weekEnd = addDays(week, 6);
+                    const isCurrentWeek = isWithinInterval(today, {
+                      start: week,
+                      end: weekEnd,
+                    });
 
-                  return (
-                    <div
-                      key={i}
-                      className={cn(
-                        "flex-shrink-0 border-r flex flex-col items-center justify-center text-xs",
-                        isCurrentWeek && "bg-primary/10"
-                      )}
-                      style={{ width: 7 * dayWidth }}
-                    >
-                      <span className="font-medium">
-                        {format(week, "M/d", { locale: ko })}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ~{format(weekEnd, "M/d", { locale: ko })}
-                      </span>
-                    </div>
-                  );
-                })}
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex-shrink-0 border-r flex flex-col items-center justify-center text-xs",
+                          isCurrentWeek && "bg-primary/10"
+                        )}
+                        style={{ width: 7 * dayWidth }}
+                      >
+                        <span className="font-medium">
+                          {format(week, "M/d", { locale: ko })}
+                        </span>
+                        <span className="text-muted-foreground">
+                          ~{format(weekEnd, "M/d", { locale: ko })}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  // 일 단위 헤더
+                  days.map((day, i) => {
+                    const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+                    const dayOfWeek = day.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex-shrink-0 border-r flex flex-col items-center justify-center text-xs",
+                          isToday && "bg-primary/10",
+                          isWeekend && "bg-muted/30"
+                        )}
+                        style={{ width: dayWidth }}
+                      >
+                        <span className={cn("font-medium", isWeekend && "text-muted-foreground")}>
+                          {format(day, "d")}
+                        </span>
+                        <span className="text-muted-foreground text-[10px]">
+                          {format(day, "E", { locale: ko })}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               {/* 차트 영역 */}
@@ -251,14 +297,41 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
                   </div>
                 </div>
 
-                {/* 주 단위 배경선 */}
-                {weeks.map((week, i) => (
-                  <div
-                    key={i}
-                    className="absolute top-0 bottom-0 border-r border-dashed border-gray-200"
-                    style={{ left: (i + 1) * 7 * dayWidth }}
-                  />
-                ))}
+                {/* 배경선 */}
+                {dateUnit === "weekly" ? (
+                  // 주 단위 배경선
+                  weeks.map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute top-0 bottom-0 border-r border-dashed border-gray-200"
+                      style={{ left: (i + 1) * 7 * dayWidth }}
+                    />
+                  ))
+                ) : (
+                  // 일 단위 배경선 (주말 표시)
+                  days.map((day, i) => {
+                    const dayOfWeek = day.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    const isSunday = dayOfWeek === 0;
+
+                    return (
+                      <div key={i}>
+                        {isWeekend && (
+                          <div
+                            className="absolute top-0 bottom-0 bg-muted/20"
+                            style={{ left: i * dayWidth, width: dayWidth }}
+                          />
+                        )}
+                        {isSunday && (
+                          <div
+                            className="absolute top-0 bottom-0 border-r border-gray-300"
+                            style={{ left: (i + 1) * dayWidth }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
 
                 {/* 항목별 바 */}
                 {allItems.map(({ phase, item }, index) => {

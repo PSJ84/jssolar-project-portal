@@ -16,16 +16,27 @@ export async function GET() {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    // 활성 프로젝트들과 예산 정보 조회
+    // 활성 프로젝트들과 예산 정보 조회 (필요한 필드만 선택)
     const projects = await prisma.project.findMany({
       where: {
         organizationId,
         status: "ACTIVE",
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
         budgetItems: {
-          include: {
-            transactions: true,
+          select: {
+            type: true,
+            plannedAmount: true,
+            vatIncluded: true,
+            transactions: {
+              where: { isCompleted: true },
+              select: {
+                amount: true,
+                vatIncluded: true,
+              },
+            },
           },
         },
       },
@@ -42,13 +53,11 @@ export async function GET() {
         (sum, item) => sum + getDisplayAmount(item.plannedAmount, item.vatIncluded),
         0
       );
-      // 매출 실제 (VAT 포함, 완료된 거래만)
+      // 매출 실제 (VAT 포함, 완료된 거래만 - 쿼리에서 이미 필터됨)
       const totalIncomeActual = incomeItems.reduce(
         (sum, item) =>
           sum +
-          item.transactions
-            .filter((tx) => tx.isCompleted)
-            .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
+          item.transactions.reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
         0
       );
 
@@ -57,13 +66,11 @@ export async function GET() {
         (sum, item) => sum + getDisplayAmount(item.plannedAmount, item.vatIncluded),
         0
       );
-      // 지출 실제 (VAT 포함, 완료된 거래만)
+      // 지출 실제 (VAT 포함, 완료된 거래만 - 쿼리에서 이미 필터됨)
       const totalExpenseActual = expenseItems.reduce(
         (sum, item) =>
           sum +
-          item.transactions
-            .filter((tx) => tx.isCompleted)
-            .reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
+          item.transactions.reduce((txSum, tx) => txSum + getDisplayAmount(tx.amount, tx.vatIncluded), 0),
         0
       );
 
