@@ -64,7 +64,7 @@ type DateUnit = "daily" | "weekly";
 export function ConstructionChart({ phases }: ConstructionChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolledToToday, setScrolledToToday] = useState(false);
-  const [dateUnit, setDateUnit] = useState<DateUnit>("weekly");
+  const [dateUnit, setDateUnit] = useState<DateUnit>("daily");
   const today = new Date();
 
   // 전체 항목을 flat하게 만들기
@@ -193,12 +193,12 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        <div className="flex">
+      <CardContent className="p-0 overflow-x-auto">
+        <div className="flex min-w-max">
           {/* 왼쪽 라벨 영역 */}
-          <div className="flex-shrink-0 w-48 border-r bg-muted/30">
+          <div className="flex-shrink-0 min-w-[140px] w-40 border-r bg-muted/30 sticky left-0 z-10 bg-background">
             {/* 헤더 */}
-            <div className="h-12 border-b flex items-center px-3 font-medium text-sm bg-muted/50">
+            <div className="h-12 border-b flex items-center px-2 font-medium text-sm bg-muted/50">
               공정명
             </div>
             {/* 항목들 */}
@@ -210,11 +210,11 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
               return (
                 <div key={item.id}>
                   {showPhaseLabel && (
-                    <div className="h-7 bg-muted/80 px-3 flex items-center text-xs font-semibold text-muted-foreground border-b">
+                    <div className="h-7 bg-muted/80 px-2 flex items-center text-xs font-semibold text-muted-foreground border-b whitespace-nowrap">
                       {phase.name}
                     </div>
                   )}
-                  <div className="h-10 px-3 flex items-center text-sm border-b truncate">
+                  <div className="h-10 px-2 flex items-center text-sm border-b whitespace-nowrap bg-background">
                     {item.name}
                   </div>
                 </div>

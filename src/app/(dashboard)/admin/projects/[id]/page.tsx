@@ -307,21 +307,23 @@ export default async function AdminProjectDetailPage({
 
       {/* Tabs - URL의 tab 파라미터 또는 진행 단계가 기본 선택 */}
       <Tabs defaultValue={initialTab || "tasks"} className="space-y-4">
-        <TabsList className="flex w-full overflow-x-auto scrollbar-hide h-auto gap-1">
-          <TabsTrigger value="tasks" className="flex-shrink-0">진행 단계</TabsTrigger>
-          <TabsTrigger value="construction" className="flex-shrink-0">공정표</TabsTrigger>
-          <TabsTrigger value="todos" className="flex-shrink-0">할 일</TabsTrigger>
-          <TabsTrigger value="quotations" className="flex-shrink-0">견적서</TabsTrigger>
-          <TabsTrigger value="budget" className="flex-shrink-0">예산</TabsTrigger>
-          <TabsTrigger value="overview" className="flex-shrink-0">개요</TabsTrigger>
-          <TabsTrigger value="documents" className="flex-shrink-0">
-            문서 ({project.documents.length})
-          </TabsTrigger>
-          <TabsTrigger value="members" className="flex-shrink-0">
-            멤버 ({project.members.length})
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="flex-shrink-0">활동</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="inline-flex w-max h-auto gap-1">
+            <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">진행 단계</TabsTrigger>
+            <TabsTrigger value="construction" className="flex-shrink-0 flex-none">공정표</TabsTrigger>
+            <TabsTrigger value="todos" className="flex-shrink-0 flex-none">할 일</TabsTrigger>
+            <TabsTrigger value="quotations" className="flex-shrink-0 flex-none">견적서</TabsTrigger>
+            <TabsTrigger value="budget" className="flex-shrink-0 flex-none">예산</TabsTrigger>
+            <TabsTrigger value="overview" className="flex-shrink-0 flex-none">개요</TabsTrigger>
+            <TabsTrigger value="documents" className="flex-shrink-0 flex-none">
+              문서 ({project.documents.length})
+            </TabsTrigger>
+            <TabsTrigger value="members" className="flex-shrink-0 flex-none">
+              멤버 ({project.members.length})
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="flex-shrink-0 flex-none">활동</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* 진행 단계 탭 */}
         <TabsContent value="tasks" className="space-y-4">
