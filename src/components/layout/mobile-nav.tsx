@@ -94,8 +94,8 @@ export function MobileNav({ userName, userRole, children }: MobileNavProps) {
 
       {/* 모바일 사이드바 (Sheet) */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <SheetHeader className="p-6 pb-4 border-b">
+        <SheetContent side="left" className="w-64 p-0 flex flex-col h-full">
+          <SheetHeader className="p-6 pb-4 border-b shrink-0">
             <div className="flex items-center gap-2">
               <Sun className="h-6 w-6 text-solar-500" />
               <SheetTitle className="text-xl font-bold text-primary">JSSolar</SheetTitle>
@@ -105,18 +105,20 @@ export function MobileNav({ userName, userRole, children }: MobileNavProps) {
             </p>
           </SheetHeader>
 
-          {/* 사용자 정보 */}
-          {userName && (
-            <div className="px-4 py-4">
-              <Card className="p-3 bg-muted/50">
-                <p className="text-sm font-medium truncate">{userName}</p>
-                <p className="text-xs text-muted-foreground">{roleLabel}</p>
-              </Card>
-            </div>
-          )}
+          {/* 스크롤 가능 영역 */}
+          <div className="flex-1 overflow-y-auto overscroll-contain">
+            {/* 사용자 정보 */}
+            {userName && (
+              <div className="px-4 py-4">
+                <Card className="p-3 bg-muted/50">
+                  <p className="text-sm font-medium truncate">{userName}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabel}</p>
+                </Card>
+              </div>
+            )}
 
-          {/* 네비게이션 */}
-          <nav className="px-4 space-y-1 flex-1">
+            {/* 네비게이션 */}
+            <nav className="px-4 pb-4 space-y-1">
             {/* Super Admin Menu */}
             {isSuperAdmin && (
               <>
@@ -198,10 +200,11 @@ export function MobileNav({ userName, userRole, children }: MobileNavProps) {
                 })}
               </>
             )}
-          </nav>
+            </nav>
+          </div>
 
           {/* 로그아웃 */}
-          <div className="p-4 border-t mt-auto">
+          <div className="p-4 border-t shrink-0">
             <Button
               variant="outline"
               className="w-full justify-start gap-2"
