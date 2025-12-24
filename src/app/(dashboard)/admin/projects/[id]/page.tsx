@@ -307,7 +307,7 @@ export default async function AdminProjectDetailPage({
 
       {/* Tabs - URL의 tab 파라미터 또는 진행 단계가 기본 선택 */}
       <Tabs defaultValue={initialTab || "tasks"} className="space-y-4">
-        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="overflow-x-auto scrollbar-hide">
           <TabsList className="inline-flex w-max h-auto gap-1">
             <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">진행 단계</TabsTrigger>
             <TabsTrigger value="construction" className="flex-shrink-0 flex-none">공정표</TabsTrigger>

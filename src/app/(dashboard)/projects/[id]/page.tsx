@@ -276,7 +276,7 @@ export default async function ClientProjectDetailPage({
 
       {/* Tabs - 개요가 첫 번째 탭 */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="overflow-x-auto scrollbar-hide">
           <TabsList className="inline-flex w-max h-auto gap-1">
             <TabsTrigger value="overview" className="flex-shrink-0 flex-none">개요</TabsTrigger>
             <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">진행 단계</TabsTrigger>
