@@ -16,6 +16,8 @@ import { TodoList } from "@/components/todos/TodoList";
 import { ProjectBudgetSection } from "@/components/budget/ProjectBudgetSection";
 import { ProjectQuotationList } from "@/components/quotation/ProjectQuotationList";
 import { calculateWeightedProgress } from "@/lib/progress-utils";
+import { ConstructionScheduleEditor } from "@/components/construction/ConstructionScheduleEditor";
+import { ConstructionChart } from "@/components/construction/ConstructionChart";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -116,6 +118,15 @@ export default async function AdminProjectDetailPage({
           { completedDate: "asc" },
           { dueDate: "asc" },
         ],
+      },
+      // 공정표
+      constructionPhases: {
+        include: {
+          items: {
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        orderBy: { sortOrder: "asc" },
       },
     },
   });
@@ -299,6 +310,7 @@ export default async function AdminProjectDetailPage({
       <Tabs defaultValue={initialTab || "tasks"} className="space-y-4">
         <TabsList className="flex w-full overflow-x-auto scrollbar-hide h-auto gap-1">
           <TabsTrigger value="tasks" className="flex-shrink-0">진행 단계</TabsTrigger>
+          <TabsTrigger value="construction" className="flex-shrink-0">공정표</TabsTrigger>
           <TabsTrigger value="todos" className="flex-shrink-0">할 일</TabsTrigger>
           <TabsTrigger value="quotations" className="flex-shrink-0">견적서</TabsTrigger>
           <TabsTrigger value="budget" className="flex-shrink-0">예산</TabsTrigger>
@@ -351,6 +363,53 @@ export default async function AdminProjectDetailPage({
               };
             })}
             isAdmin={true}
+          />
+        </TabsContent>
+
+        {/* 공정표 탭 */}
+        <TabsContent value="construction" className="space-y-6">
+          <ConstructionScheduleEditor
+            projectId={project.id}
+            initialPhases={project.constructionPhases.map((phase) => ({
+              id: phase.id,
+              projectId: phase.projectId,
+              name: phase.name,
+              sortOrder: phase.sortOrder,
+              items: phase.items.map((item) => ({
+                id: item.id,
+                phaseId: item.phaseId,
+                name: item.name,
+                startDate: item.startDate?.toISOString() ?? null,
+                endDate: item.endDate?.toISOString() ?? null,
+                actualStart: item.actualStart?.toISOString() ?? null,
+                actualEnd: item.actualEnd?.toISOString() ?? null,
+                progress: item.progress,
+                status: item.status,
+                memo: item.memo,
+                sortOrder: item.sortOrder,
+              })),
+            }))}
+          />
+          <ConstructionChart
+            phases={project.constructionPhases.map((phase) => ({
+              id: phase.id,
+              projectId: phase.projectId,
+              name: phase.name,
+              sortOrder: phase.sortOrder,
+              items: phase.items.map((item) => ({
+                id: item.id,
+                phaseId: item.phaseId,
+                name: item.name,
+                startDate: item.startDate?.toISOString() ?? null,
+                endDate: item.endDate?.toISOString() ?? null,
+                actualStart: item.actualStart?.toISOString() ?? null,
+                actualEnd: item.actualEnd?.toISOString() ?? null,
+                progress: item.progress,
+                status: item.status,
+                memo: item.memo,
+                sortOrder: item.sortOrder,
+              })),
+            }))}
           />
         </TabsContent>
 

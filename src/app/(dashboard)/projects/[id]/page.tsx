@@ -20,6 +20,7 @@ import {
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 import { ClientProgressSummary } from "@/components/tasks/ClientProgressSummary";
 import { ProjectQuotationList } from "@/components/quotation/ProjectQuotationList";
+import { ConstructionChart } from "@/components/construction/ConstructionChart";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -132,6 +133,15 @@ async function getProject(id: string, userId: string, userRole: string, organiza
             },
           },
           orderBy: { createdAt: "desc" },
+        },
+        // 공정표
+        constructionPhases: {
+          include: {
+            items: {
+              orderBy: { sortOrder: "asc" },
+            },
+          },
+          orderBy: { sortOrder: "asc" },
         },
       },
     });
@@ -269,6 +279,7 @@ export default async function ClientProjectDetailPage({
         <TabsList>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="tasks">진행 단계</TabsTrigger>
+          <TabsTrigger value="construction">공정표</TabsTrigger>
           <TabsTrigger value="quotations">견적서</TabsTrigger>
           <TabsTrigger value="documents">
             문서 ({project.documents.length})
@@ -345,6 +356,31 @@ export default async function ClientProjectDetailPage({
             isClient={true}
             hideProgressSummary={true}
             defaultAllExpanded={true}
+          />
+        </TabsContent>
+
+        {/* 공정표 탭 */}
+        <TabsContent value="construction" className="space-y-4">
+          <ConstructionChart
+            phases={project.constructionPhases.map((phase) => ({
+              id: phase.id,
+              projectId: phase.projectId,
+              name: phase.name,
+              sortOrder: phase.sortOrder,
+              items: phase.items.map((item) => ({
+                id: item.id,
+                phaseId: item.phaseId,
+                name: item.name,
+                startDate: item.startDate?.toISOString() ?? null,
+                endDate: item.endDate?.toISOString() ?? null,
+                actualStart: item.actualStart?.toISOString() ?? null,
+                actualEnd: item.actualEnd?.toISOString() ?? null,
+                progress: item.progress,
+                status: item.status,
+                memo: item.memo,
+                sortOrder: item.sortOrder,
+              })),
+            }))}
           />
         </TabsContent>
 
