@@ -255,23 +255,34 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
                     );
                   })
                 ) : (
-                  // 일 단위 헤더
+                  // 일 단위 헤더 (월/연도 구분 포함)
                   days.map((day, i) => {
                     const isToday = format(day, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
                     const dayOfWeek = day.getDay();
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    const isFirstDayOfMonth = day.getDate() === 1;
+                    const prevDay = i > 0 ? days[i - 1] : null;
+                    const isNewMonth = prevDay && prevDay.getMonth() !== day.getMonth();
+                    const isNewYear = prevDay && prevDay.getFullYear() !== day.getFullYear();
 
                     return (
                       <div
                         key={i}
                         className={cn(
-                          "flex-shrink-0 border-r flex flex-col items-center justify-center text-xs",
+                          "flex-shrink-0 border-r flex flex-col items-center justify-center text-xs relative",
                           isToday && "bg-primary/10",
-                          isWeekend && "bg-muted/30"
+                          isWeekend && "bg-muted/30",
+                          (isNewMonth || isFirstDayOfMonth) && "border-l-2 border-l-primary/50"
                         )}
                         style={{ width: dayWidth }}
                       >
-                        <span className={cn("font-medium", isWeekend && "text-muted-foreground")}>
+                        {/* 월/연도 표시 (1일 또는 월이 바뀔 때) */}
+                        {(isFirstDayOfMonth || isNewMonth) && (
+                          <span className="absolute -top-0 text-[9px] font-bold text-primary">
+                            {isNewYear ? format(day, "yy/M월", { locale: ko }) : format(day, "M월", { locale: ko })}
+                          </span>
+                        )}
+                        <span className={cn("font-medium", isWeekend && "text-muted-foreground", (isFirstDayOfMonth || isNewMonth) && "mt-2")}>
                           {format(day, "d")}
                         </span>
                         <span className="text-muted-foreground text-[10px]">
