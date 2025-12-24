@@ -24,7 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Pencil, Key, User, Mail, Shield, Calculator, ChevronRight } from "lucide-react";
+import { Loader2, Pencil, Key, User, Mail, Shield, Calculator, ChevronRight, Building } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 
 interface UserProfile {
@@ -63,6 +64,18 @@ export default function AdminSettingsPage() {
     length: false,
   });
 
+  // Company info state
+  const [companyForm, setCompanyForm] = useState({
+    name: "",
+    ceo: "",
+    businessNumber: "",
+    address: "",
+    phone: "",
+    email: "",
+  });
+  const [companyLoading, setCompanyLoading] = useState(false);
+  const [companySaving, setCompanySaving] = useState(false);
+
   // Fetch profile
   const fetchProfile = async () => {
     try {
@@ -85,8 +98,51 @@ export default function AdminSettingsPage() {
     }
   };
 
+  // Fetch company info
+  const fetchCompanyInfo = async () => {
+    try {
+      setCompanyLoading(true);
+      const response = await fetch("/api/admin/company-info");
+      if (!response.ok) throw new Error("Failed to fetch");
+      const data = await response.json();
+      setCompanyForm({
+        name: data.COMPANY_NAME || "",
+        ceo: data.COMPANY_CEO || "",
+        businessNumber: data.COMPANY_BUSINESS_NUMBER || "",
+        address: data.COMPANY_ADDRESS || "",
+        phone: data.COMPANY_PHONE || "",
+        email: data.COMPANY_EMAIL || "",
+      });
+    } catch (error) {
+      console.error("Error fetching company info:", error);
+    } finally {
+      setCompanyLoading(false);
+    }
+  };
+
+  // Save company info
+  const handleSaveCompanyInfo = async () => {
+    try {
+      setCompanySaving(true);
+      const response = await fetch("/api/admin/company-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(companyForm),
+      });
+
+      if (!response.ok) throw new Error("Failed to save");
+      toast.success("공급자 정보가 저장되었습니다.");
+    } catch (error) {
+      console.error("Error saving company info:", error);
+      toast.error("공급자 정보 저장에 실패했습니다.");
+    } finally {
+      setCompanySaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
+    fetchCompanyInfo();
   }, []);
 
   // Validate password
@@ -429,6 +485,106 @@ export default function AdminSettingsPage() {
               비밀번호 변경
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Company Info Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building className="h-5 w-5" />
+            공급자 정보
+          </CardTitle>
+          <CardDescription>
+            견적서 PDF에 표시되는 공급자(회사) 정보를 설정합니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {companyLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4 max-w-2xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company-name">상호</Label>
+                  <Input
+                    id="company-name"
+                    placeholder="JS Solar"
+                    value={companyForm.name}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company-ceo">대표자</Label>
+                  <Input
+                    id="company-ceo"
+                    placeholder="홍길동"
+                    value={companyForm.ceo}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, ceo: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company-bn">사업자번호</Label>
+                  <Input
+                    id="company-bn"
+                    placeholder="123-45-67890"
+                    value={companyForm.businessNumber}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, businessNumber: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company-phone">연락처</Label>
+                  <Input
+                    id="company-phone"
+                    placeholder="054-123-4567"
+                    value={companyForm.phone}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, phone: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="company-email">이메일</Label>
+                  <Input
+                    id="company-email"
+                    type="email"
+                    placeholder="info@example.com"
+                    value={companyForm.email}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, email: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="company-address">주소</Label>
+                  <Input
+                    id="company-address"
+                    placeholder="경상북도 영덕군..."
+                    value={companyForm.address}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, address: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleSaveCompanyInfo}
+                disabled={companySaving}
+                className="mt-4"
+              >
+                {companySaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                저장
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

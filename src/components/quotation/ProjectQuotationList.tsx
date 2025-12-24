@@ -13,9 +13,40 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Download, Plus, ExternalLink } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { FileText, Download, Plus, ExternalLink, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { QuotationStatus } from "@prisma/client";
+
+interface QuotationItem {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  note: string | null;
+}
+
+interface QuotationDetail {
+  id: string;
+  quotationNumber: string;
+  customerName: string;
+  projectName: string | null;
+  quotationDate: string;
+  subtotal: number;
+  roundingAmount: number;
+  totalAmount: number;
+  vatIncluded: boolean;
+  grandTotal: number;
+  status: QuotationStatus;
+  specialNotes: string | null;
+  items: QuotationItem[];
+}
 
 interface Quotation {
   id: string;
@@ -54,6 +85,9 @@ const statusVariants: Record<QuotationStatus, "default" | "secondary" | "outline
 export function ProjectQuotationList({ projectId, isAdmin = false }: ProjectQuotationListProps) {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailsCache, setDetailsCache] = useState<Record<string, QuotationDetail>>({});
+  const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
 
   useEffect(() => {
     fetchQuotations();
@@ -70,6 +104,32 @@ export function ProjectQuotationList({ projectId, isAdmin = false }: ProjectQuot
       toast.error("견적서 목록을 불러오는데 실패했습니다.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchQuotationDetail = async (id: string) => {
+    if (detailsCache[id]) return;
+
+    setLoadingDetail(id);
+    try {
+      const response = await fetch(`/api/quotations/${id}`);
+      if (!response.ok) throw new Error("Failed to fetch");
+      const data = await response.json();
+      setDetailsCache((prev) => ({ ...prev, [id]: data }));
+    } catch (error) {
+      console.error("Error fetching quotation detail:", error);
+      toast.error("견적서 상세 정보를 불러오는데 실패했습니다.");
+    } finally {
+      setLoadingDetail(null);
+    }
+  };
+
+  const handleToggle = async (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(id);
+      await fetchQuotationDetail(id);
     }
   };
 
@@ -140,61 +200,159 @@ export function ProjectQuotationList({ projectId, isAdmin = false }: ProjectQuot
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>견적번호</TableHead>
-                  <TableHead>일자</TableHead>
-                  <TableHead className="text-right">금액</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead className="text-right">다운로드</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {quotations.map((q) => (
-                  <TableRow key={q.id}>
-                    <TableCell>
-                      {isAdmin ? (
-                        <Link
-                          href={`/admin/quotations/${q.id}`}
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          {q.quotationNumber}
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
-                      ) : (
-                        <span className="font-medium">{q.quotationNumber}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{formatDate(q.quotationDate)}</TableCell>
-                    <TableCell className="text-right">
-                      <div>
-                        {formatCurrency(q.grandTotal)}
-                        <span className="text-xs text-muted-foreground ml-1">
-                          (VAT {q.vatIncluded ? "포함" : "별도"})
-                        </span>
+          <div className="space-y-2">
+            {quotations.map((q) => {
+              const detail = detailsCache[q.id];
+              const isExpanded = expandedId === q.id;
+              const isLoadingThis = loadingDetail === q.id;
+
+              return (
+                <Collapsible
+                  key={q.id}
+                  open={isExpanded}
+                  onOpenChange={() => handleToggle(q.id)}
+                >
+                  <div className="border rounded-lg">
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between p-3 hover:bg-muted/50 cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              {isAdmin ? (
+                                <Link
+                                  href={`/admin/quotations/${q.id}`}
+                                  className="font-medium text-primary hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {q.quotationNumber}
+                                </Link>
+                              ) : (
+                                <span className="font-medium">{q.quotationNumber}</span>
+                              )}
+                              <Badge variant={statusVariants[q.status]} className="text-xs">
+                                {statusLabels[q.status]}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {formatDate(q.quotationDate)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="font-medium">{formatCurrency(q.grandTotal)}</div>
+                            <div className="text-xs text-muted-foreground">
+                              VAT {q.vatIncluded ? "포함" : "별도"}
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadPdf(q.id, q.quotationNumber);
+                            }}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariants[q.status]}>
-                        {statusLabels[q.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownloadPdf(q.id, q.quotationNumber)}
-                      >
-                        <Download className="h-4 w-4" />
-                        <span className="sr-only">PDF 다운로드</span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                      <div className="border-t p-3 bg-muted/30">
+                        {isLoadingThis ? (
+                          <div className="text-center py-4 text-muted-foreground">
+                            불러오는 중...
+                          </div>
+                        ) : detail ? (
+                          <div className="space-y-4">
+                            {/* 품목 테이블 */}
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-12">NO</TableHead>
+                                    <TableHead>품명</TableHead>
+                                    <TableHead className="w-16">단위</TableHead>
+                                    <TableHead className="w-20 text-right">수량</TableHead>
+                                    <TableHead className="w-28 text-right">단가</TableHead>
+                                    <TableHead className="w-28 text-right">금액</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {detail.items.map((item, idx) => (
+                                    <TableRow key={item.id}>
+                                      <TableCell className="text-center">{idx + 1}</TableCell>
+                                      <TableCell>{item.name}</TableCell>
+                                      <TableCell>{item.unit}</TableCell>
+                                      <TableCell className="text-right">{item.quantity}</TableCell>
+                                      <TableCell className="text-right">
+                                        {item.unitPrice.toLocaleString()}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {item.amount.toLocaleString()}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+
+                            {/* 합계 */}
+                            <div className="flex justify-end">
+                              <div className="w-64 space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span>소계</span>
+                                  <span>{detail.subtotal.toLocaleString()}원</span>
+                                </div>
+                                {detail.roundingAmount !== 0 && (
+                                  <div className="flex justify-between text-muted-foreground">
+                                    <span>잔액정리</span>
+                                    <span>{detail.roundingAmount.toLocaleString()}원</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-medium">
+                                  <span>공급가액</span>
+                                  <span>{detail.totalAmount.toLocaleString()}원</span>
+                                </div>
+                                {!detail.vatIncluded && (
+                                  <div className="flex justify-between">
+                                    <span>부가세 (10%)</span>
+                                    <span>
+                                      {Math.round(detail.totalAmount * 0.1).toLocaleString()}원
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-bold text-base border-t pt-1">
+                                  <span>합계</span>
+                                  <span>{detail.grandTotal.toLocaleString()}원</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 특기사항 */}
+                            {detail.specialNotes && (
+                              <div className="text-sm">
+                                <div className="font-medium mb-1">특기사항</div>
+                                <div className="text-muted-foreground whitespace-pre-wrap">
+                                  {detail.specialNotes}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              );
+            })}
           </div>
         )}
       </CardContent>

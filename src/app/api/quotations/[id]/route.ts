@@ -16,11 +16,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const { id } = await params;
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
 
     const quotation = await prisma.quotation.findUnique({
       where: { id },
@@ -28,7 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         items: {
           orderBy: { sortOrder: "asc" },
         },
-        analyses: true,
+        analyses: isAdmin, // 분석 데이터는 관리자만
         createdBy: {
           select: { id: true, name: true },
         },
@@ -36,7 +33,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           select: { id: true, name: true },
         },
         project: {
-          select: { id: true, name: true },
+          include: {
+            members: { select: { userId: true } },
+          },
         },
       },
     });
@@ -48,12 +47,42 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 조직 권한 체크
+    // 권한 확인: 관리자이거나 프로젝트 멤버인 경우
+    const isMember = quotation.project?.members.some(
+      (m) => m.userId === session.user.id
+    );
+
+    if (!isAdmin && !isMember) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // 조직 권한 체크 (관리자인 경우)
     if (
+      isAdmin &&
       session.user.role !== "SUPER_ADMIN" &&
       quotation.organizationId !== session.user.organizationId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // 클라이언트에게는 실행단가/실행금액 숨기기
+    if (!isAdmin) {
+      const sanitizedQuotation = {
+        ...quotation,
+        execSubtotal: undefined,
+        execTotal: undefined,
+        items: quotation.items.map((item) => ({
+          ...item,
+          execUnitPrice: undefined,
+          execAmount: undefined,
+        })),
+        analyses: undefined,
+        project: quotation.project ? {
+          id: quotation.project.id,
+          name: quotation.project.name,
+        } : null,
+      };
+      return NextResponse.json(sanitizedQuotation);
     }
 
     // 유효기간 체크하여 EXPIRED 상태 업데이트

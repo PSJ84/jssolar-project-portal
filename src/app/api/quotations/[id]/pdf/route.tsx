@@ -12,16 +12,6 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// 회사 정보 (나중에 DB 또는 환경변수로 관리)
-const companyInfo: CompanyInfo = {
-  name: "JS Solar",
-  ceo: "대표이사",
-  address: "경상북도 영덕군",
-  phone: "054-XXX-XXXX",
-  email: "info@jssolar.kr",
-  businessNumber: "XXX-XX-XXXXX",
-};
-
 // GET: 견적서 PDF 다운로드
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -31,17 +21,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const { id } = await params;
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
 
     const quotation = await prisma.quotation.findUnique({
       where: { id },
       include: {
         items: {
           orderBy: { sortOrder: "asc" },
+        },
+        organization: true,
+        project: {
+          include: {
+            members: { select: { userId: true } },
+          },
         },
       },
     });
@@ -52,6 +45,44 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    // 권한 확인: 관리자이거나 프로젝트 멤버인 경우
+    const isMember = quotation.project?.members.some(
+      (m) => m.userId === session.user.id
+    );
+
+    if (!isAdmin && !isMember) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // 공급자 정보 가져오기 (SystemConfig에서)
+    const companyConfigs = await prisma.systemConfig.findMany({
+      where: {
+        key: {
+          in: [
+            "COMPANY_NAME",
+            "COMPANY_CEO",
+            "COMPANY_ADDRESS",
+            "COMPANY_PHONE",
+            "COMPANY_EMAIL",
+            "COMPANY_BUSINESS_NUMBER",
+          ],
+        },
+      },
+    });
+
+    const configMap = Object.fromEntries(
+      companyConfigs.map((c) => [c.key, c.value])
+    );
+
+    const companyInfo: CompanyInfo = {
+      name: configMap.COMPANY_NAME || quotation.organization?.name || "JS Solar",
+      ceo: configMap.COMPANY_CEO || "대표이사",
+      address: configMap.COMPANY_ADDRESS || "경상북도 영덕군",
+      phone: configMap.COMPANY_PHONE || "054-XXX-XXXX",
+      email: configMap.COMPANY_EMAIL || "info@jssolar.kr",
+      businessNumber: configMap.COMPANY_BUSINESS_NUMBER || "XXX-XX-XXXXX",
+    };
 
     // PDF용 데이터 변환
     const pdfData: QuotationPdfData = {
