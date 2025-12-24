@@ -193,37 +193,38 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0 overflow-x-auto">
-        <div className="flex min-w-max">
-          {/* 왼쪽 라벨 영역 */}
-          <div className="flex-shrink-0 min-w-[140px] w-40 border-r bg-muted/30 sticky left-0 z-10 bg-background">
-            {/* 헤더 */}
-            <div className="h-12 border-b flex items-center px-2 font-medium text-sm bg-muted/50">
-              공정명
-            </div>
-            {/* 항목들 */}
-            {allItems.map(({ phase, item }, index) => {
-              const showPhaseLabel =
-                index === 0 ||
-                allItems[index - 1].phase.id !== phase.id;
+      <CardContent className="p-0">
+        <div className="overflow-x-auto" ref={scrollRef}>
+          <div className="flex" style={{ minWidth: "600px" }}>
+            {/* 왼쪽 라벨 영역 */}
+            <div className="w-[120px] flex-shrink-0 border-r bg-muted/30">
+              {/* 헤더 */}
+              <div className="h-12 border-b flex items-center px-2 font-medium text-sm bg-muted/50">
+                공정명
+              </div>
+              {/* 항목들 */}
+              {allItems.map(({ phase, item }, index) => {
+                const showPhaseLabel =
+                  index === 0 ||
+                  allItems[index - 1].phase.id !== phase.id;
 
-              return (
-                <div key={item.id}>
-                  {showPhaseLabel && (
-                    <div className="h-7 bg-muted/80 px-2 flex items-center text-xs font-semibold text-muted-foreground border-b whitespace-nowrap">
-                      {phase.name}
+                return (
+                  <div key={item.id}>
+                    {showPhaseLabel && (
+                      <div className="h-7 bg-muted/80 px-2 flex items-center text-xs font-semibold text-muted-foreground border-b">
+                        <span className="truncate">{phase.name}</span>
+                      </div>
+                    )}
+                    <div className="h-10 px-2 flex items-center text-sm border-b bg-background">
+                      <span className="truncate">{item.name}</span>
                     </div>
-                  )}
-                  <div className="h-10 px-2 flex items-center text-sm border-b whitespace-nowrap bg-background">
-                    {item.name}
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
 
-          {/* 오른쪽 차트 영역 */}
-          <div className="flex-1 overflow-x-auto" ref={scrollRef}>
+            {/* 오른쪽 차트 영역 */}
+            <div className="flex-1">
             <div style={{ width: chartWidth, minWidth: "100%" }}>
               {/* 헤더 */}
               <div className="h-12 border-b flex bg-muted/50">
@@ -398,6 +399,7 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
                   );
                 })}
               </div>
+            </div>
             </div>
           </div>
         </div>
