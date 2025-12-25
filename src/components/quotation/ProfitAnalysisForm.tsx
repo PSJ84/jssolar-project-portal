@@ -33,6 +33,11 @@ interface Quotation {
   grandTotal: number;
 }
 
+interface KepcoChargeData {
+  totalCharge: number;
+  applyToProfit: boolean;
+}
+
 interface SystemConfig {
   smpPrice: number;
   recPrice: number;
@@ -54,6 +59,10 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
 
   // 금융 모델
   const [financingType, setFinancingType] = useState<FinancingType>("SELF_FUNDING");
+
+  // 한전불입금 및 추가 투자비
+  const [kepcoCharge, setKepcoCharge] = useState<KepcoChargeData | null>(null);
+  const [monitoringEquipmentFee, setMonitoringEquipmentFee] = useState("0");
 
   // 공통 파라미터
   const [peakHours, setPeakHours] = useState("3.7");
@@ -79,13 +88,14 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
 
-  // 시스템 설정 로드
+  // 시스템 설정 및 한전불입금 로드
   useEffect(() => {
-    const fetchConfig = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("/api/admin/system-config");
-        if (response.ok) {
-          const configs = await response.json();
+        // 시스템 설정 로드
+        const configResponse = await fetch("/api/admin/system-config");
+        if (configResponse.ok) {
+          const configs = await configResponse.json();
           const configMap: Record<string, string> = {};
           configs.forEach((c: { key: string; value: string }) => {
             configMap[c.key] = c.value;
@@ -101,15 +111,27 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
           if (configMap.MAINTENANCE_COST) setMaintenanceCost(Math.round(parseFloat(configMap.MAINTENANCE_COST) / 12).toString());
           if (configMap.MONITORING_COST) setMonitoringCost(Math.round(parseFloat(configMap.MONITORING_COST) / 12).toString());
         }
+
+        // 한전불입금 로드
+        const kepcoResponse = await fetch(`/api/quotations/${quotation.id}/kepco-charge`);
+        if (kepcoResponse.ok) {
+          const kepcoData = await kepcoResponse.json();
+          if (kepcoData && kepcoData.applyToProfit) {
+            setKepcoCharge({
+              totalCharge: kepcoData.totalCharge,
+              applyToProfit: kepcoData.applyToProfit,
+            });
+          }
+        }
       } catch (error) {
-        console.error("Error fetching config:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setConfigLoading(false);
       }
     };
 
-    fetchConfig();
-  }, []);
+    fetchData();
+  }, [quotation.id]);
 
   // 금융 모델 변경 시 기본값 설정
   useEffect(() => {
@@ -133,17 +155,23 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
     }
   }, [financingType, quotation.grandTotal]);
 
+  // 총 투자금액 계산 (공급가액 + 한전불입금 + 감시제어)
+  const totalInvestment =
+    quotation.grandTotal +
+    (kepcoCharge?.applyToProfit ? kepcoCharge.totalCharge : 0) +
+    (parseFloat(monitoringEquipmentFee) || 0);
+
   // 계산 실행
   const handleCalculate = useCallback(() => {
     setLoading(true);
 
     try {
       const selfRate = parseFloat(selfFundingRate) / 100;
-      const loanAmount = quotation.grandTotal * (1 - selfRate);
+      const loanAmount = totalInvestment * (1 - selfRate);
 
       const input: AnalysisInput = {
         capacityKw: parseFloat(capacityKw) || 0,
-        totalInvestment: quotation.grandTotal,
+        totalInvestment,
         financingType,
         peakHours: parseFloat(peakHours),
         degradationRate: parseFloat(degradationRate) / 100,
@@ -171,7 +199,7 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
       setLoading(false);
     }
   }, [
-    quotation,
+    totalInvestment,
     capacityKw,
     financingType,
     peakHours,
@@ -254,10 +282,10 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
       {/* 기본 정보 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">견적 정보</CardTitle>
+          <CardTitle className="text-base">투자비용</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-sm">
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">견적번호</span>
               <p className="font-medium">{quotation.quotationNumber}</p>
@@ -272,9 +300,38 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
                 className="h-8"
               />
             </div>
-            <div>
-              <span className="text-muted-foreground">총 투자금액</span>
-              <p className="font-medium">{quotation.grandTotal.toLocaleString()}원</p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">견적 공급가액</span>
+              <span>{quotation.grandTotal.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">
+                한전불입금
+                {kepcoCharge?.applyToProfit ? "" : " (미반영)"}
+              </span>
+              <span className={kepcoCharge?.applyToProfit ? "" : "text-muted-foreground"}>
+                {kepcoCharge ? `${kepcoCharge.totalCharge.toLocaleString()}원` : "미입력"}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <Label className="text-muted-foreground text-sm">감시제어 장비비</Label>
+              <Input
+                type="number"
+                value={monitoringEquipmentFee}
+                onChange={(e) => setMonitoringEquipmentFee(e.target.value)}
+                className="h-8 w-40 text-right"
+                placeholder="0"
+              />
+            </div>
+            <Separator />
+            <div className="flex justify-between font-medium pt-1">
+              <span>총 투자금액</span>
+              <span className="text-primary">{totalInvestment.toLocaleString()}원</span>
             </div>
           </div>
         </CardContent>
@@ -331,7 +388,7 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
                   <div className="space-y-2">
                     <Label>대출 금액</Label>
                     <Input
-                      value={`${Math.round(quotation.grandTotal * (1 - parseFloat(selfFundingRate) / 100)).toLocaleString()}원`}
+                      value={`${Math.round(totalInvestment * (1 - parseFloat(selfFundingRate) / 100)).toLocaleString()}원`}
                       disabled
                     />
                   </div>
@@ -524,7 +581,7 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
         <ProfitAnalysisResult
           result={result}
           financingType={financingType}
-          totalInvestment={quotation.grandTotal}
+          totalInvestment={totalInvestment}
         />
       )}
     </div>

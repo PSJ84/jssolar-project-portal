@@ -53,10 +53,12 @@ import {
   Copy,
   FileText,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { QuotationStatus } from "@prisma/client";
 import { ProfitAnalysisForm } from "@/components/quotation/ProfitAnalysisForm";
+import { KepcoChargeCalculator } from "@/components/quotation/KepcoChargeCalculator";
 
 interface QuotationItem {
   id: string;
@@ -355,6 +357,10 @@ export default function QuotationDetailPage({
             <FileText className="h-4 w-4" />
             견적 상세
           </TabsTrigger>
+          <TabsTrigger value="kepco" className="gap-2">
+            <Zap className="h-4 w-4" />
+            한전불입금
+          </TabsTrigger>
           <TabsTrigger value="analysis" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             수익 분석
@@ -642,6 +648,15 @@ export default function QuotationDetailPage({
                 </CardContent>
               </Card>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="kepco">
+          <div className="max-w-2xl">
+            <KepcoChargeCalculator
+              quotationId={quotation.id}
+              defaultCapacityKw={quotation.capacityKw || 0}
+            />
           </div>
         </TabsContent>
 

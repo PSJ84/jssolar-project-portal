@@ -606,6 +606,9 @@ model Quotation {
   // 수익분석
   analyses        ProfitAnalysis[]
 
+  // 한전불입금
+  kepcoCharge     KepcoCharge?
+
   // 프로젝트 연결 (계약 시)
   projectId       String?
   project         Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -651,6 +654,31 @@ model QuotationItem {
   updatedAt     DateTime @updatedAt
 
   @@index([quotationId, sortOrder])
+}
+
+// 한전불입금
+model KepcoCharge {
+  id              String    @id @default(cuid())
+  quotationId     String    @unique
+  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  capacityKw      Float             // 계약전력 (kW)
+  voltageType     String            // 저압, 고압, 특별고압
+  supplyType      String            // 공중, 지중
+
+  basicCharge     Int               // 기본시설부담금 (자동 계산)
+  distanceCharge  Int       @default(0)  // 거리시설부담금 (직접 입력)
+  totalCharge     Int               // 합계
+
+  paymentType     String    @default("LUMP_SUM")  // LUMP_SUM, INSTALLMENT
+  downPayment     Int?              // 선납금 (분할납부 시)
+  totalInterest   Int?              // 총 이자 (분할납부 시)
+  totalWithInterest Int?            // 이자 포함 총액 (분할납부 시)
+
+  applyToProfit   Boolean   @default(true)  // 수익분석 반영 여부
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 // 금융 모델
