@@ -128,6 +128,24 @@ export default async function AdminProjectDetailPage({
         },
         orderBy: { sortOrder: "asc" },
       },
+      // 예산 항목 (로딩 최적화)
+      budgetItems: {
+        include: {
+          transactions: {
+            orderBy: { date: "desc" },
+          },
+        },
+        orderBy: { sortOrder: "asc" },
+      },
+      // 견적서 (로딩 최적화)
+      quotations: {
+        include: {
+          items: {
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -435,12 +453,72 @@ export default async function AdminProjectDetailPage({
 
         {/* 견적서 탭 */}
         <TabsContent value="quotations" className="space-y-4">
-          <ProjectQuotationList projectId={project.id} isAdmin={true} />
+          <ProjectQuotationList
+            projectId={project.id}
+            isAdmin={true}
+            initialQuotations={project.quotations.map((q) => ({
+              id: q.id,
+              quotationNumber: q.quotationNumber,
+              customerName: q.customerName,
+              projectName: q.projectName,
+              quotationDate: q.quotationDate.toISOString(),
+              totalAmount: q.totalAmount,
+              vatIncluded: q.vatIncluded,
+              grandTotal: q.grandTotal,
+              status: q.status,
+            }))}
+            initialDetails={project.quotations.map((q) => ({
+              id: q.id,
+              quotationNumber: q.quotationNumber,
+              customerName: q.customerName,
+              projectName: q.projectName,
+              quotationDate: q.quotationDate.toISOString(),
+              subtotal: q.subtotal,
+              roundingAmount: q.roundingAmount,
+              totalAmount: q.totalAmount,
+              vatIncluded: q.vatIncluded,
+              grandTotal: q.grandTotal,
+              status: q.status,
+              specialNotes: q.specialNotes,
+              execSubtotal: q.execSubtotal,
+              execTotal: q.execTotal,
+              items: q.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                unit: item.unit,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                amount: item.amount,
+                note: item.note,
+                execUnitPrice: item.execUnitPrice,
+                execAmount: item.execAmount,
+              })),
+            }))}
+          />
         </TabsContent>
 
         {/* 예산 탭 */}
         <TabsContent value="budget" className="space-y-4">
-          <ProjectBudgetSection projectId={project.id} />
+          <ProjectBudgetSection
+            projectId={project.id}
+            initialItems={project.budgetItems.map((item) => ({
+              id: item.id,
+              type: item.type as "INCOME" | "EXPENSE",
+              category: item.category,
+              plannedAmount: item.plannedAmount,
+              vatIncluded: item.vatIncluded,
+              memo: item.memo,
+              sortOrder: item.sortOrder,
+              transactions: item.transactions.map((tx) => ({
+                id: tx.id,
+                date: tx.date.toISOString(),
+                description: tx.description,
+                amount: tx.amount,
+                vatIncluded: tx.vatIncluded,
+                isCompleted: tx.isCompleted,
+              })),
+            }))}
+          />
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">

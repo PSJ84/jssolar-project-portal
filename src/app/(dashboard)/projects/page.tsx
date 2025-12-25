@@ -54,6 +54,12 @@ export default async function ClientProjectsPage() {
   }
 
   const projects = await getMyProjects(session.user.id);
+  const isClient = session.user.role === "CLIENT";
+
+  // 사업주가 프로젝트 1개만 있으면 바로 해당 프로젝트로 이동
+  if (isClient && projects.length === 1) {
+    redirect(`/projects/${projects[0].id}`);
+  }
 
   return (
     <div className="space-y-6">
@@ -66,9 +72,13 @@ export default async function ClientProjectsPage() {
 
       {projects.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">참여 중인 프로젝트가 없습니다.</p>
+          <p className="text-lg font-medium text-muted-foreground">
+            {isClient ? "등록된 프로젝트가 없습니다" : "참여 중인 프로젝트가 없습니다."}
+          </p>
           <p className="text-sm text-muted-foreground mt-2">
-            관리자가 프로젝트에 초대하면 여기에 표시됩니다.
+            {isClient
+              ? "담당자에게 문의해 주세요."
+              : "관리자가 프로젝트에 초대하면 여기에 표시됩니다."}
           </p>
         </div>
       ) : (

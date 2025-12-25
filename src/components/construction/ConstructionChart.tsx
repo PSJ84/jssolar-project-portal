@@ -45,6 +45,7 @@ interface ConstructionPhase {
   projectId: string;
   name: string;
   sortOrder: number;
+  weight: number;  // 가중치 (%, 0~100)
   items: ConstructionItem[];
 }
 
@@ -127,6 +128,32 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
   const dayWidth = dateUnit === "daily" ? 30 : 20; // 일 단위는 더 넓게
   const chartWidth = totalDays * dayWidth;
 
+  // 전체 시공 진행률 계산 (가중치 적용)
+  const totalConstructionProgress = useMemo(() => {
+    let totalProgress = 0;
+    let totalWeight = 0;
+
+    phases.forEach((phase) => {
+      const weight = phase.weight || 0;
+      if (weight === 0) return;
+
+      const items = phase.items || [];
+      const avgProgress =
+        items.length > 0
+          ? items.reduce((sum, item) => sum + (item.progress || 0), 0) / items.length
+          : 0;
+
+      totalProgress += avgProgress * (weight / 100);
+      totalWeight += weight;
+    });
+
+    if (totalWeight > 0 && totalWeight !== 100) {
+      totalProgress = totalProgress * (100 / totalWeight);
+    }
+
+    return Math.round(totalProgress);
+  }, [phases]);
+
   // 오늘 위치로 스크롤
   useEffect(() => {
     if (scrollRef.current && !scrolledToToday) {
@@ -158,7 +185,62 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
   }
 
   return (
-    <Card>
+    <div className="space-y-4">
+      {/* 시공 진행률 요약 */}
+      <div className="p-4 bg-white rounded-xl border border-zinc-100">
+        <h3 className="text-sm font-medium text-zinc-700 mb-4">시공 진행률</h3>
+
+        <div className="space-y-3">
+          {phases.map((phase) => {
+            // 세부공정 진행률 평균 계산
+            const items = phase.items || [];
+            const avgProgress =
+              items.length > 0
+                ? Math.round(
+                    items.reduce((sum, item) => sum + (item.progress || 0), 0) /
+                      items.length
+                  )
+                : 0;
+
+            return (
+              <div key={phase.id} className="flex items-center gap-3">
+                <span className="text-sm text-zinc-600 min-w-[100px] truncate">
+                  {phase.name}
+                </span>
+                <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full transition-all"
+                    style={{ width: `${avgProgress}%` }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-zinc-700 w-12 text-right">
+                  {avgProgress}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 전체 시공 진행률 */}
+        <div className="mt-4 pt-4 border-t border-zinc-100">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-zinc-900 min-w-[100px]">
+              전체
+            </span>
+            <div className="flex-1 h-2.5 bg-zinc-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-zinc-900 rounded-full transition-all"
+                style={{ width: `${totalConstructionProgress}%` }}
+              />
+            </div>
+            <span className="text-base font-bold text-zinc-900 w-12 text-right">
+              {totalConstructionProgress}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <Card>
       <CardHeader className="py-3 px-4 border-b">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
@@ -405,5 +487,6 @@ export function ConstructionChart({ phases }: ConstructionChartProps) {
         </div>
       </CardContent>
     </Card>
+    </div>
   );
 }

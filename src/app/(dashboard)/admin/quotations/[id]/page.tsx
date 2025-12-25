@@ -96,6 +96,7 @@ interface Quotation {
   status: QuotationStatus;
   createdAt: string;
   updatedAt: string;
+  capacityKw: number | null;  // 설치 용량
   items: QuotationItem[];
   createdBy: {
     id: string;
@@ -293,7 +294,7 @@ export default function QuotationDetailPage({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {quotation.status === "DRAFT" && (
+              {(quotation.status === "DRAFT" || quotation.status === "ACCEPTED") && (
                 <DropdownMenuItem asChild>
                   <Link href={`/admin/quotations/${id}/edit`}>
                     <Pencil className="h-4 w-4 mr-2" />
@@ -649,7 +650,7 @@ export default function QuotationDetailPage({
             quotation={{
               id: quotation.id,
               quotationNumber: quotation.quotationNumber,
-              capacityKw: 0, // Legacy field - not used in new quotations
+              capacityKw: quotation.capacityKw || 0,
               grandTotal: quotation.grandTotal,
             }}
           />

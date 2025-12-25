@@ -92,7 +92,10 @@ export function ProjectQuotationList({
 }: ProjectQuotationListProps) {
   const [quotations, setQuotations] = useState<Quotation[]>(initialQuotations || []);
   const [isLoading, setIsLoading] = useState(!initialQuotations);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // 견적서가 1개일 경우 기본으로 펼치기
+  const [expandedId, setExpandedId] = useState<string | null>(
+    initialQuotations?.length === 1 ? initialQuotations[0].id : null
+  );
   const [detailsCache, setDetailsCache] = useState<Record<string, QuotationDetail>>(() => {
     if (initialDetails) {
       return Object.fromEntries(initialDetails.map(d => [d.id, d]));

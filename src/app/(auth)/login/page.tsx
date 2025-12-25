@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -68,59 +69,110 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">로그인</CardTitle>
-        <CardDescription>
-          계정 정보를 입력하여 로그인하세요
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">아이디</Label>
-            <Input
-              id="username"
-              type="text"
-              placeholder="아이디를 입력하세요"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">비밀번호</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          {error && (
-            <div className="text-sm text-red-600">
-              {error}
-            </div>
-          )}
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              "로그인 중..."
-            ) : (
-              <>
-                <LogIn className="mr-2 h-4 w-4" />
-                로그인
-              </>
-            )}
-          </Button>
-        </form>
-        <div className="mt-6 text-center text-sm text-muted-foreground">
-          <p>관리자가 생성한 계정으로 로그인하세요.</p>
+    <div className="w-full h-screen lg:grid lg:grid-cols-2 overflow-hidden">
+      {/* Left Side - Abstract Solar Aesthetics */}
+      <div className="hidden lg:flex relative flex-col justify-between p-12 h-full bg-zinc-950 text-white overflow-hidden">
+        {/* Abstract Background with Grayscale filter for "Minimal" feel */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?q=80&w=2574&auto=format&fit=crop"
+            alt="Minimal Abstract Solar"
+            fill
+            className="object-cover opacity-40 grayscale contrast-125 animate-in fade-in duration-1000"
+            priority
+          />
+          {/* Subtle gradient overlay for depth */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-zinc-950 via-zinc-950/50 to-transparent" />
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Minimal Logo Area */}
+        <div className="relative z-10 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
+            <span className="text-sm font-medium tracking-widest uppercase text-zinc-300">JS Solar Portal</span>
+          </div>
+        </div>
+
+        {/* Bottom Text - Clean & Technical */}
+        <div className="relative z-10 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
+          <h2 className="text-3xl font-light tracking-tight text-white mb-2">
+            Engineering the <span className="text-yellow-500 font-normal">Future</span>
+          </h2>
+          <p className="text-zinc-400 text-sm max-w-sm leading-relaxed">
+            Advanced solar project management for the next generation of energy infrastructure.
+          </p>
+        </div>
+      </div>
+
+      {/* Right Side - Clean Minimal Form */}
+      <div className="flex items-center justify-center p-8 bg-white relative">
+        <div className="w-full max-w-[320px] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+
+          {/* Header */}
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Sign in</h1>
+            <p className="text-sm text-zinc-500">Welcome back. Please enter your details.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Username Input */}
+            <div className="space-y-2 group">
+              <Label htmlFor="username" className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Account ID</Label>
+              <Input
+                id="username"
+                type="text"
+                className="h-10 border-0 border-b border-zinc-200 bg-transparent px-0 shadow-none focus-visible:border-zinc-900 focus-visible:ring-0 rounded-none transition-colors placeholder:text-zinc-300"
+                placeholder="admin@jssolar.kr"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-2 group">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Password</Label>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                className="h-10 border-0 border-b border-zinc-200 bg-transparent px-0 shadow-none focus-visible:border-zinc-900 focus-visible:ring-0 rounded-none transition-colors placeholder:text-zinc-300"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="text-xs text-red-500 font-medium flex items-center gap-1.5 animate-in fade-in">
+                <div className="w-1 h-1 rounded-full bg-red-500" />
+                {error}
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full h-10 rounded-full bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-800 transition-transform active:scale-[0.98] shadow-sm"
+              disabled={isLoading}
+            >
+              {isLoading ? "Authenticating..." : "Continue"}
+            </Button>
+          </form>
+
+          {/* Footer - Minimal Link */}
+          <div className="text-center">
+            <button className="text-xs text-zinc-400 hover:text-zinc-900 transition-colors">
+              Having trouble signing in?
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

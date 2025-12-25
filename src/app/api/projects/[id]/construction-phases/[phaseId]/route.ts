@@ -27,13 +27,14 @@ export async function PATCH(
 
     const { phaseId } = await params;
     const body = await request.json();
-    const { name, sortOrder } = body;
+    const { name, sortOrder, weight } = body;
 
     const phase = await prisma.constructionPhase.update({
       where: { id: phaseId },
       data: {
         ...(name !== undefined && { name }),
         ...(sortOrder !== undefined && { sortOrder }),
+        ...(weight !== undefined && { weight: Math.max(0, Math.min(100, weight)) }),
       },
       include: {
         items: {

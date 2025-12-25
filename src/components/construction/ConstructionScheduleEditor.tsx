@@ -1,6 +1,23 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +72,7 @@ export interface ConstructionPhase {
   projectId: string;
   name: string;
   sortOrder: number;
+  weight: number;  // 가중치 (%, 0~100)
   items: ConstructionItem[];
 }
 
@@ -76,20 +94,62 @@ export function ConstructionScheduleEditor({
   initialPhases = [],
   onPhasesChange,
 }: ConstructionScheduleEditorProps) {
-  const [phases, setPhasesInternal] = useState<ConstructionPhase[]>(initialPhases);
+  const [phases, setPhases] = useState<ConstructionPhase[]>(initialPhases);
+  const onPhasesChangeRef = useRef(onPhasesChange);
 
-  // 상태 변경 시 콜백 호출
-  const setPhases = (updater: ConstructionPhase[] | ((prev: ConstructionPhase[]) => ConstructionPhase[])) => {
-    setPhasesInternal((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      onPhasesChange?.(next);
-      return next;
-    });
-  };
+  // 콜백 ref 업데이트
+  useEffect(() => {
+    onPhasesChangeRef.current = onPhasesChange;
+  }, [onPhasesChange]);
+
+  // phases 변경 시 콜백 호출 (렌더링 후)
+  useEffect(() => {
+    onPhasesChangeRef.current?.(phases);
+  }, [phases]);
+
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(
     new Set(initialPhases.map((p) => p.id))
   );
   const [isLoading, setIsLoading] = useState(false);
+
+  // DnD 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // 세부공정 순서 변경 핸들러
+  const handleItemDragEnd = async (phaseId: string, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const phase = phases.find((p) => p.id === phaseId);
+    if (!phase) return;
+
+    const oldIndex = phase.items.findIndex((item) => item.id === active.id);
+    const newIndex = phase.items.findIndex((item) => item.id === over.id);
+    const newItems = arrayMove(phase.items, oldIndex, newIndex);
+
+    // 로컬 상태 업데이트
+    setPhases((prev) =>
+      prev.map((p) =>
+        p.id === phaseId ? { ...p, items: newItems } : p
+      )
+    );
+
+    // API 호출
+    try {
+      await fetch(`/api/projects/${projectId}/construction-phases/${phaseId}/items/reorder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds: newItems.map((item) => item.id) }),
+      });
+    } catch (error) {
+      console.error("Error reordering items:", error);
+    }
+  };
 
   // 대공정 추가/수정 다이얼로그
   const [phaseDialogOpen, setPhaseDialogOpen] = useState(false);
@@ -351,6 +411,33 @@ export function ConstructionScheduleEditor({
     }
   };
 
+  // 가중치 변경 핸들러
+  const handleWeightChange = async (phaseId: string, weight: number) => {
+    const clampedWeight = Math.max(0, Math.min(100, weight || 0));
+
+    // 로컬 상태 먼저 업데이트
+    setPhases((prev) =>
+      prev.map((p) => (p.id === phaseId ? { ...p, weight: clampedWeight } : p))
+    );
+
+    // API 호출
+    try {
+      await fetch(
+        `/api/projects/${projectId}/construction-phases/${phaseId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weight: clampedWeight }),
+        }
+      );
+    } catch (error) {
+      console.error("Error saving weight:", error);
+    }
+  };
+
+  // 가중치 합계 계산
+  const totalWeight = phases.reduce((sum, p) => sum + (p.weight || 0), 0);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -375,7 +462,7 @@ export function ConstructionScheduleEditor({
             <Card key={phase.id}>
               <CardHeader className="py-3 px-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1">
                     <button
                       onClick={() => togglePhase(phase.id)}
                       className="p-1 hover:bg-muted rounded"
@@ -391,6 +478,19 @@ export function ConstructionScheduleEditor({
                     <Badge variant="outline" className="text-xs">
                       {phase.items.length}개
                     </Badge>
+                    {/* 가중치 입력 */}
+                    <div className="flex items-center gap-1 ml-auto mr-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={phase.weight || 0}
+                        onChange={(e) => handleWeightChange(phase.id, parseInt(e.target.value))}
+                        className="w-16 h-7 text-center text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
@@ -424,65 +524,41 @@ export function ConstructionScheduleEditor({
               {expandedPhases.has(phase.id) && phase.items.length > 0 && (
                 <CardContent className="pt-0 px-4 pb-3">
                   <div className="border rounded-md overflow-x-auto">
-                    <table className="w-full text-sm min-w-[600px]">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="text-left py-2 px-3 font-medium">공정명</th>
-                          <th className="text-center py-2 px-2 font-medium w-20">계획</th>
-                          <th className="text-center py-2 px-2 font-medium w-20">실제</th>
-                          <th className="text-center py-2 px-2 font-medium w-24">진행률</th>
-                          <th className="text-center py-2 px-2 font-medium w-16">상태</th>
-                          <th className="w-20"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {phase.items.map((item) => (
-                          <tr key={item.id} className="border-t hover:bg-muted/30">
-                            <td className="py-2 px-3">
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
-                                <span>{item.name}</span>
-                              </div>
-                            </td>
-                            <td className="text-center py-2 px-2 text-xs text-muted-foreground">
-                              {formatDate(item.startDate)}~{formatDate(item.endDate)}
-                            </td>
-                            <td className="text-center py-2 px-2 text-xs text-muted-foreground">
-                              {formatDate(item.actualStart)}~{formatDate(item.actualEnd)}
-                            </td>
-                            <td className="py-2 px-2">
-                              <div className="flex items-center gap-1">
-                                <Progress value={item.progress} className="h-2 flex-1" />
-                                <span className="text-xs w-8 text-right">{item.progress}%</span>
-                              </div>
-                            </td>
-                            <td className="text-center py-2 px-2">
-                              {getStatusBadge(item.status)}
-                            </td>
-                            <td className="py-2 px-2">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => handleEditItem(item)}
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteItem(item.id, phase.id)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </td>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(event) => handleItemDragEnd(phase.id, event)}
+                    >
+                      <table className="w-full text-sm min-w-[600px]">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left py-2 px-3 font-medium">공정명</th>
+                            <th className="text-center py-2 px-2 font-medium w-20">계획</th>
+                            <th className="text-center py-2 px-2 font-medium w-20">실제</th>
+                            <th className="text-center py-2 px-2 font-medium w-24">진행률</th>
+                            <th className="text-center py-2 px-2 font-medium w-16">상태</th>
+                            <th className="w-20"></th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <SortableContext
+                          items={phase.items.map((item) => item.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <tbody>
+                            {phase.items.map((item) => (
+                              <SortableItemRow
+                                key={item.id}
+                                item={item}
+                                formatDate={formatDate}
+                                getStatusBadge={getStatusBadge}
+                                onEdit={handleEditItem}
+                                onDelete={(id) => handleDeleteItem(id, phase.id)}
+                              />
+                            ))}
+                          </tbody>
+                        </SortableContext>
+                      </table>
+                    </DndContext>
                   </div>
                 </CardContent>
               )}
@@ -504,6 +580,20 @@ export function ConstructionScheduleEditor({
               )}
             </Card>
           ))}
+
+          {/* 가중치 합계 표시 */}
+          <div className="flex justify-end items-center gap-2 mt-4 text-sm">
+            <span className="text-muted-foreground">가중치 합계:</span>
+            <span className={cn(
+              "font-medium",
+              totalWeight === 100 ? "text-green-600" : "text-red-600"
+            )}>
+              {totalWeight}%
+            </span>
+            {totalWeight !== 100 && (
+              <span className="text-red-500 text-xs">(100%가 되어야 합니다)</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -652,5 +742,91 @@ export function ConstructionScheduleEditor({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// 드래그 가능한 테이블 행 컴포넌트
+interface SortableItemRowProps {
+  item: ConstructionItem;
+  formatDate: (date: string | null) => string;
+  getStatusBadge: (status: ConstructionItem["status"]) => React.ReactNode;
+  onEdit: (item: ConstructionItem) => void;
+  onDelete: (id: string) => void;
+}
+
+function SortableItemRow({
+  item,
+  formatDate,
+  getStatusBadge,
+  onEdit,
+  onDelete,
+}: SortableItemRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={cn("border-t hover:bg-muted/30", isDragging && "bg-muted")}
+    >
+      <td className="py-2 px-3">
+        <div className="flex items-center gap-2">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none"
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </button>
+          <span>{item.name}</span>
+        </div>
+      </td>
+      <td className="text-center py-2 px-2 text-xs text-muted-foreground">
+        {formatDate(item.startDate)}~{formatDate(item.endDate)}
+      </td>
+      <td className="text-center py-2 px-2 text-xs text-muted-foreground">
+        {formatDate(item.actualStart)}~{formatDate(item.actualEnd)}
+      </td>
+      <td className="py-2 px-2">
+        <div className="flex items-center gap-1">
+          <Progress value={item.progress} className="h-2 flex-1" />
+          <span className="text-xs w-8 text-right">{item.progress}%</span>
+        </div>
+      </td>
+      <td className="text-center py-2 px-2">{getStatusBadge(item.status)}</td>
+      <td className="py-2 px-2">
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => onEdit(item)}
+          >
+            <Edit2 className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-destructive hover:text-destructive"
+            onClick={() => onDelete(item.id)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </td>
+    </tr>
   );
 }

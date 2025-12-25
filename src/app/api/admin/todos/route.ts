@@ -34,14 +34,29 @@ export async function GET(request: NextRequest) {
     });
 
     const projectIds = projects.map((p) => p.id);
+    const organizationId = session.user.organizationId;
 
-    // 필터 조건 구성
-    const where: {
-      projectId: { in: string[] } | string;
+    // 필터 조건 구성 (프로젝트 소속 또는 조직 소속)
+    type TodoWhereInput = {
+      OR?: Array<{ projectId?: { in: string[] } | string; organizationId?: string }>;
+      projectId?: { in: string[] } | string;
       completedDate?: { not: null } | null;
-    } = {
-      projectId: projectId ? projectId : { in: projectIds },
     };
+
+    let where: TodoWhereInput;
+
+    if (projectId) {
+      // 특정 프로젝트 필터
+      where = { projectId };
+    } else {
+      // 모든 할 일: 프로젝트 소속 + 조직 직접 소속
+      where = {
+        OR: [
+          { projectId: { in: projectIds } },
+          { organizationId },
+        ],
+      };
+    }
 
     if (completed === "true") {
       where.completedDate = { not: null };
@@ -101,13 +116,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { projectId, title, description, dueDate, priority, assigneeId } = body;
 
-    if (!projectId) {
-      return NextResponse.json(
-        { error: "프로젝트를 선택해주세요." },
-        { status: 400 }
-      );
-    }
-
     if (!title?.trim()) {
       return NextResponse.json(
         { error: "제목을 입력해주세요." },
@@ -115,24 +123,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 프로젝트가 해당 조직에 속하는지 확인
-    const project = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        organizationId: session.user.organizationId,
-      },
-    });
+    let finalProjectId: string | null = projectId || null;
+    let finalOrganizationId: string | null = null;
 
-    if (!project) {
-      return NextResponse.json(
-        { error: "프로젝트를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+    if (projectId) {
+      // 프로젝트가 해당 조직에 속하는지 확인
+      const project = await prisma.project.findFirst({
+        where: {
+          id: projectId,
+          organizationId: session.user.organizationId,
+        },
+      });
+
+      if (!project) {
+        return NextResponse.json(
+          { error: "프로젝트를 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
+    } else {
+      // 프로젝트 없으면 조직에 직접 연결
+      finalOrganizationId = session.user.organizationId;
     }
 
     const todo = await prisma.todo.create({
       data: {
-        projectId,
+        projectId: finalProjectId,
+        organizationId: finalOrganizationId,
         title: title.trim(),
         description: description?.trim() || null,
         dueDate: dueDate ? new Date(dueDate) : null,

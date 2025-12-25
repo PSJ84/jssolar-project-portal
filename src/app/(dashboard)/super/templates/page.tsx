@@ -824,25 +824,25 @@ function SortableMainTemplate({
     >
       <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
         {/* 메인 템플릿 헤더 */}
-        <div className="flex items-center gap-2 p-3">
+        <div className="flex flex-wrap items-center gap-2 p-3">
           {/* 드래그 핸들 */}
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none shrink-0 hidden sm:block"
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
 
           {/* 순서 번호 */}
-          <span className="text-sm text-muted-foreground w-6 text-center">
+          <span className="text-sm text-muted-foreground w-6 text-center shrink-0 hidden sm:block">
             {index + 1}
           </span>
 
           {/* 펼침/접힘 (하위 태스크 있을 때만) */}
           {template.children.length > 0 && (
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 transition-transform",
@@ -854,11 +854,11 @@ function SortableMainTemplate({
           )}
 
           {/* 템플릿 이름 */}
-          <span className="font-medium flex-1">{template.name}</span>
+          <span className="font-medium flex-1 min-w-0">{template.name}</span>
 
           {/* 인허가 배지 */}
           {template.isPermitTask && (
-            <Badge variant="outline" className="text-blue-600 border-blue-200">
+            <Badge variant="outline" className="text-blue-600 border-blue-200 shrink-0 hidden sm:flex">
               <FileCheck className="h-3 w-3 mr-1" />
               인허가 {template.processingDays}일
             </Badge>
@@ -866,7 +866,10 @@ function SortableMainTemplate({
 
           {/* 하위 태스크 수 */}
           {template.children.length > 0 && (
-            <Badge variant="secondary">하위 {template.children.length}</Badge>
+            <>
+              <Badge variant="secondary" className="shrink-0 hidden sm:inline-flex">하위 {template.children.length}</Badge>
+              <Badge variant="secondary" className="shrink-0 sm:hidden text-xs">({template.children.length})</Badge>
+            </>
           )}
 
           {/* 액션 버튼 */}

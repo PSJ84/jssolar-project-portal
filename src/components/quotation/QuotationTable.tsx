@@ -230,7 +230,7 @@ export function QuotationTable({ quotations, showOrganization = false }: Quotati
                             상세 보기
                           </Link>
                         </DropdownMenuItem>
-                        {quotation.status === "DRAFT" && (
+                        {(quotation.status === "DRAFT" || quotation.status === "ACCEPTED") && (
                           <DropdownMenuItem asChild>
                             <Link href={`/admin/quotations/${quotation.id}/edit`}>
                               <Pencil className="h-4 w-4 mr-2" />

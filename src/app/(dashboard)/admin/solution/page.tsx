@@ -111,7 +111,7 @@ export default function SolutionHubPage() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">통합 솔루션</h1>
+        <h1 className="text-2xl font-bold">대시보드</h1>
         <p className="text-muted-foreground">
           회사 업무, 지식 관리, 예산 관리를 한 곳에서 확인하세요.
         </p>

@@ -204,9 +204,10 @@ export default function BudgetOverviewPage() {
                     <TableHead>프로젝트</TableHead>
                     <TableHead className="text-right">매출 (계획)</TableHead>
                     <TableHead className="text-right">매출 (입금)</TableHead>
-                    <TableHead className="text-right">지출 (계획)</TableHead>
-                    <TableHead className="text-right">지출 (실제)</TableHead>
-                    <TableHead className="text-right">예상 이익</TableHead>
+                    <TableHead className="text-right">매입 (계획)</TableHead>
+                    <TableHead className="text-right">매입 (실제)</TableHead>
+                    <TableHead className="text-right">순이익 (현재)</TableHead>
+                    <TableHead className="text-right">순이익 (예상)</TableHead>
                     <TableHead className="text-right">이익률</TableHead>
                     <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
@@ -231,6 +232,17 @@ export default function BudgetOverviewPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           {hasBudget ? formatCurrencyShort(project.expense.actual) : "-"}
+                        </TableCell>
+                        <TableCell className={cn(
+                          "text-right font-medium",
+                          project.profit.current >= 0 ? "text-green-600" : "text-orange-600"
+                        )}>
+                          {hasBudget ? (
+                            <>
+                              {project.profit.current >= 0 ? "+" : ""}
+                              {formatCurrencyShort(project.profit.current)}
+                            </>
+                          ) : "-"}
                         </TableCell>
                         <TableCell className={cn(
                           "text-right font-medium",

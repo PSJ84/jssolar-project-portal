@@ -16,8 +16,30 @@ export default async function DashboardPage() {
     redirect("/admin/dashboard");
   }
 
-  // CLIENT용 대시보드 데이터 조회
+  // CLIENT용 - 프로젝트 개수 먼저 확인
   const userId = session.user.id;
+
+  // 프로젝트 개수 확인 (빠른 쿼리)
+  const projectCount = await prisma.project.count({
+    where: {
+      members: { some: { userId } },
+      status: { not: "ARCHIVED" },
+    },
+  });
+
+  // 프로젝트 1개면 바로 해당 프로젝트로 이동
+  if (projectCount === 1) {
+    const project = await prisma.project.findFirst({
+      where: {
+        members: { some: { userId } },
+        status: { not: "ARCHIVED" },
+      },
+      select: { id: true },
+    });
+    if (project) {
+      redirect(`/projects/${project.id}`);
+    }
+  }
 
   // 프로젝트 목록 조회
   const projects = await prisma.project.findMany({

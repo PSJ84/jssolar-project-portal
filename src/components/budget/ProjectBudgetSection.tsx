@@ -93,6 +93,8 @@ interface BudgetSummary {
 
 interface ProjectBudgetSectionProps {
   projectId: string;
+  initialItems?: BudgetItem[];
+  initialSummary?: BudgetSummary | null;
 }
 
 // Sortable Budget Item Wrapper
@@ -139,10 +141,10 @@ function formatDate(dateStr: string): string {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
-  const [items, setItems] = useState<BudgetItem[]>([]);
-  const [summary, setSummary] = useState<BudgetSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+export function ProjectBudgetSection({ projectId, initialItems, initialSummary }: ProjectBudgetSectionProps) {
+  const [items, setItems] = useState<BudgetItem[]>(initialItems || []);
+  const [summary, setSummary] = useState<BudgetSummary | null>(initialSummary || null);
+  const [loading, setLoading] = useState(!initialItems);
 
   // Dialog states
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
@@ -203,8 +205,11 @@ export function ProjectBudgetSection({ projectId }: ProjectBudgetSectionProps) {
   }, [projectId]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // initialItems가 제공되면 fetch 건너뜀 (서버에서 이미 데이터 로드됨)
+    if (!initialItems) {
+      fetchData();
+    }
+  }, [fetchData, initialItems]);
 
   // 견적서 목록 로드
   const fetchQuotations = async () => {

@@ -61,8 +61,8 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
   const [smpPrice, setSmpPrice] = useState("120");
   const [recPrice, setRecPrice] = useState("40000");
   const [recWeight, setRecWeight] = useState("1.0");
-  const [maintenanceCost, setMaintenanceCost] = useState("500000");
-  const [monitoringCost, setMonitoringCost] = useState("300000");
+  const [maintenanceCost, setMaintenanceCost] = useState("41667");  // 월간 (연간 500,000 / 12)
+  const [monitoringCost, setMonitoringCost] = useState("25000");    // 월간 (연간 300,000 / 12)
 
   // 대출 관련
   const [selfFundingRate, setSelfFundingRate] = useState("20");
@@ -71,6 +71,9 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
 
   // 팩토링
   const [factoringFeeRate, setFactoringFeeRate] = useState("8");
+
+  // 설치 용량
+  const [capacityKw, setCapacityKw] = useState(quotation.capacityKw.toString());
 
   // 결과
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -95,8 +98,8 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
           if (configMap.DEGRADATION_RATE) {
             setDegradationRate((parseFloat(configMap.DEGRADATION_RATE) * 100).toString());
           }
-          if (configMap.MAINTENANCE_COST) setMaintenanceCost(configMap.MAINTENANCE_COST);
-          if (configMap.MONITORING_COST) setMonitoringCost(configMap.MONITORING_COST);
+          if (configMap.MAINTENANCE_COST) setMaintenanceCost(Math.round(parseFloat(configMap.MAINTENANCE_COST) / 12).toString());
+          if (configMap.MONITORING_COST) setMonitoringCost(Math.round(parseFloat(configMap.MONITORING_COST) / 12).toString());
         }
       } catch (error) {
         console.error("Error fetching config:", error);
@@ -139,7 +142,7 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
       const loanAmount = quotation.grandTotal * (1 - selfRate);
 
       const input: AnalysisInput = {
-        capacityKw: quotation.capacityKw,
+        capacityKw: parseFloat(capacityKw) || 0,
         totalInvestment: quotation.grandTotal,
         financingType,
         peakHours: parseFloat(peakHours),
@@ -147,8 +150,8 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
         smpPrice: parseFloat(smpPrice),
         recPrice: parseFloat(recPrice),
         recWeight: parseFloat(recWeight),
-        maintenanceCost: parseFloat(maintenanceCost),
-        monitoringCost: parseFloat(monitoringCost),
+        maintenanceCost: parseFloat(maintenanceCost) * 12,  // 월간 → 연간
+        monitoringCost: parseFloat(monitoringCost) * 12,   // 월간 → 연간
         selfFundingRate: selfRate,
         loanAmount,
         interestRate: parseFloat(interestRate),
@@ -169,6 +172,7 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
     }
   }, [
     quotation,
+    capacityKw,
     financingType,
     peakHours,
     degradationRate,
@@ -206,8 +210,8 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
           smpPrice: parseFloat(smpPrice),
           recPrice: parseFloat(recPrice),
           recWeight: parseFloat(recWeight),
-          maintenanceCost: parseFloat(maintenanceCost),
-          monitoringCost: parseFloat(monitoringCost),
+          maintenanceCost: parseFloat(maintenanceCost) * 12,  // 월간 → 연간
+          monitoringCost: parseFloat(monitoringCost) * 12,   // 월간 → 연간
           selfFundingRate: selfRate,
           loanAmount,
           interestRate: parseFloat(interestRate),
@@ -258,9 +262,15 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
               <span className="text-muted-foreground">견적번호</span>
               <p className="font-medium">{quotation.quotationNumber}</p>
             </div>
-            <div>
-              <span className="text-muted-foreground">설치 용량</span>
-              <p className="font-medium">{quotation.capacityKw} kW</p>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-sm">설치 용량 (kW)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={capacityKw}
+                onChange={(e) => setCapacityKw(e.target.value)}
+                className="h-8"
+              />
             </div>
             <div>
               <span className="text-muted-foreground">총 투자금액</span>
@@ -449,20 +459,22 @@ export function ProfitAnalysisForm({ quotation }: ProfitAnalysisFormProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>연간 안전관리비 (원)</Label>
+                <Label>월간 안전관리비 (원)</Label>
                 <Input
                   type="number"
                   value={maintenanceCost}
                   onChange={(e) => setMaintenanceCost(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">연간: {(parseFloat(maintenanceCost || "0") * 12).toLocaleString()}원</p>
               </div>
               <div className="space-y-2">
-                <Label>연간 모니터링비 (원)</Label>
+                <Label>월간 모니터링비 (원)</Label>
                 <Input
                   type="number"
                   value={monitoringCost}
                   onChange={(e) => setMonitoringCost(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">연간: {(parseFloat(monitoringCost || "0") * 12).toLocaleString()}원</p>
               </div>
             </div>
           </CardContent>

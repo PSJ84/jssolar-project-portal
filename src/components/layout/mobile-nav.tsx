@@ -37,7 +37,7 @@ const superAdminNavigation = [
 ];
 
 const adminNavigation = [
-  { name: "대시보드", href: "/admin/dashboard", icon: LayoutDashboard },
+  { name: "프로젝트 현황", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "프로젝트 관리", href: "/admin/projects", icon: FolderKanban },
   { name: "견적 관리", href: "/admin/quotations", icon: FileText },
   { name: "사용자 관리", href: "/admin/users", icon: Users },
@@ -46,7 +46,7 @@ const adminNavigation = [
 ];
 
 const solutionNavigation = [
-  { name: "통합 솔루션", href: "/admin/solution", icon: Lightbulb },
+  { name: "대시보드", href: "/admin/solution", icon: Lightbulb },
   { name: "전체 할 일", href: "/admin/solution/company-todos", icon: CheckSquare },
   { name: "지식노트", href: "/admin/solution/knowledge", icon: BookOpen },
   { name: "예산 현황", href: "/admin/solution/budget", icon: DollarSign },
@@ -171,12 +171,12 @@ export function MobileNav({ userName, userRole, children }: MobileNavProps) {
               );
             })}
 
-            {/* Solution Menu (Admin Only) */}
+            {/* 대시보드 메뉴 (Admin Only) */}
             {isAdmin && (
               <>
                 <div className="my-3 border-b" />
                 <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                  통합 솔루션
+                  대시보드
                 </p>
                 {solutionNavigation.map((item) => {
                   const isActive = pathname === item.href ||

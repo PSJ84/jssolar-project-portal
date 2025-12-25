@@ -113,12 +113,12 @@ export function ClientProgressSummary({ tasks, compact = false }: ClientProgress
 
   return (
     <div className={cn("space-y-3", !compact && "mb-6")}>
-      {/* 전체 진행률 */}
+      {/* 인허가 진행률 */}
       <Card>
         <CardContent className={cn(compact ? "pt-3 pb-3" : "pt-4 pb-4")}>
           <div className={cn(compact ? "space-y-2" : "space-y-3")}>
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">전체 진행률</span>
+              <span className="font-medium">인허가 진행률</span>
               <span className="text-muted-foreground">
                 {progressPercent}% ({completedCount}/{total} 완료)
               </span>

@@ -230,8 +230,8 @@ export function TaskListV2({ projectId, tasks, isAdmin = false, isClient = false
   const [newSubtaskName, setNewSubtaskName] = useState("");
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
-  // CLIENT용 목록 접기/펼치기
-  const [isListExpanded, setIsListExpanded] = useState(false);
+  // CLIENT용 목록 접기/펼치기 (기본: 펼침)
+  const [isListExpanded, setIsListExpanded] = useState(true);
 
   // tasks prop 변경 시 동기화
   useEffect(() => {

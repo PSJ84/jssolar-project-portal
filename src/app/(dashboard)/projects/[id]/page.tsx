@@ -482,6 +482,36 @@ export default async function ClientProjectDetailPage({
 
         {/* 공정표 탭 */}
         <TabsContent value="construction" className="space-y-4">
+          {/* 대공정별 진행률 바 */}
+          {project.constructionPhases.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">대공정별 진행률</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {project.constructionPhases.map((phase) => {
+                  // 공정별 평균 진행률 계산
+                  const avgProgress = phase.items.length > 0
+                    ? Math.round(phase.items.reduce((sum, item) => sum + (item.progress || 0), 0) / phase.items.length)
+                    : 0;
+                  return (
+                    <div key={phase.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{phase.name}</span>
+                        <span className="text-muted-foreground">{avgProgress}%</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{ width: `${avgProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
           <ConstructionChart
             phases={project.constructionPhases.map((phase) => ({
               id: phase.id,

@@ -45,13 +45,10 @@ import {
   Circle,
   ListTodo,
   Edit,
-  CalendarIcon,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TodoPriority } from "@prisma/client";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 
@@ -523,14 +520,16 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
                 {/* 내용 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span
+                    <button
+                      onClick={() => isAdmin && openEditDialog(todo)}
                       className={cn(
-                        "font-medium",
-                        todo.completedDate && "line-through"
+                        "font-medium text-left",
+                        todo.completedDate && "line-through",
+                        isAdmin && "hover:text-primary hover:underline cursor-pointer"
                       )}
                     >
                       {todo.title}
-                    </span>
+                    </button>
                     <span className="text-sm">
                       {priorityConfig[todo.priority].icon}
                     </span>
@@ -639,38 +638,46 @@ export function TodoList({ projectId, isAdmin, members = [], initialTodos }: Tod
             <DialogTitle>할 일 수정</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* 완료일 선택 */}
+            {/* 완료 상태 */}
             <div className="space-y-2">
-              <Label>완료일</Label>
+              <Label>완료 상태</Label>
               <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formCompletedDate
-                        ? format(new Date(formCompletedDate), "yyyy년 MM월 dd일", { locale: ko })
-                        : "완료일 선택 (미완료)"
-                      }
+                {formCompletedDate ? (
+                  <>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-md flex-1">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-700">
+                        완료됨 ({format(new Date(formCompletedDate), "yyyy년 MM월 dd일", { locale: ko })})
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormCompletedDate(null)}
+                      type="button"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      완료 취소
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={formCompletedDate ? new Date(formCompletedDate) : undefined}
-                      onSelect={(date) => setFormCompletedDate(date?.toISOString() || null)}
-                      locale={ko}
-                    />
-                  </PopoverContent>
-                </Popover>
-                {formCompletedDate && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setFormCompletedDate(null)}
-                    type="button"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-muted border rounded-md flex-1">
+                      <Circle className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">미완료</span>
+                    </div>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setFormCompletedDate(new Date().toISOString())}
+                      type="button"
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                      완료 처리
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

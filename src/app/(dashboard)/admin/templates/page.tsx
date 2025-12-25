@@ -554,14 +554,14 @@ export default function AdminTemplatesPage() {
                 {/* 메인 템플릿 */}
                 <div
                   className={cn(
-                    "flex items-center gap-2 p-3 bg-muted/50",
+                    "flex flex-wrap items-center gap-2 p-3 bg-muted/50",
                     template.children.length > 0 && "cursor-pointer"
                   )}
                   onClick={() =>
                     template.children.length > 0 && toggleExpand(template.id)
                   }
                 >
-                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
 
                   {template.children.length > 0 ? (
                     <Button
@@ -576,26 +576,29 @@ export default function AdminTemplatesPage() {
                       )}
                     </Button>
                   ) : (
-                    <div className="w-6" />
+                    <div className="w-6 hidden sm:block" />
                   )}
 
-                  <span className="font-medium flex-1">{template.name}</span>
+                  <span className="font-medium flex-1 min-w-0">{template.name}</span>
 
                   {/* Phase 배지 */}
                   {(() => {
                     const phaseOption = PHASE_OPTIONS.find((p) => p.value === template.phase);
                     return phaseOption ? (
-                      <Badge variant="outline" className={cn("text-xs", phaseOption.color)}>
+                      <Badge variant="outline" className={cn("text-xs shrink-0", phaseOption.color)}>
                         {phaseOption.label}
                       </Badge>
                     ) : null;
                   })()}
 
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground shrink-0 hidden sm:inline">
                     {template.children.length}개 하위 단계
                   </span>
+                  <span className="text-xs text-muted-foreground shrink-0 sm:hidden">
+                    ({template.children.length})
+                  </span>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0 ml-auto">
                     <Button
                       variant="ghost"
                       size="icon"

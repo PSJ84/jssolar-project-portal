@@ -28,6 +28,9 @@ model Organization {
   // v2.5: 지식노트
   knowledgeNotes KnowledgeNote[]
 
+  // v3.0: 조직 레벨 할 일
+  todos          Todo[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -474,8 +477,14 @@ model Checklist {
 
 model Todo {
   id          String    @id @default(cuid())
-  projectId   String
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 프로젝트 소속 (선택, 프로젝트 있으면 프로젝트에 속함)
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 조직 소속 (프로젝트 없을 때 직접 지정)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   title       String
   description String?   @db.Text
@@ -498,6 +507,7 @@ model Todo {
   @@index([projectId, completedDate])
   @@index([assigneeId, completedDate])
   @@index([projectId, dueDate])
+  @@index([organizationId, completedDate])
 }
 
 // ==================== 견적/수익분석 시스템 ====================
