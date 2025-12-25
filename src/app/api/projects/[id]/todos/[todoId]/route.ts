@@ -41,7 +41,7 @@ export async function PATCH(
     }
 
     // ADMIN은 같은 조직만
-    if (user.role === "ADMIN" && existingTodo.project.organizationId !== user.organizationId) {
+    if (user.role === "ADMIN" && existingTodo.project?.organizationId !== user.organizationId) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
@@ -164,7 +164,7 @@ export async function DELETE(
     }
 
     // ADMIN은 같은 조직만
-    if (user.role === "ADMIN" && existingTodo.project.organizationId !== user.organizationId) {
+    if (user.role === "ADMIN" && existingTodo.project?.organizationId !== user.organizationId) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 

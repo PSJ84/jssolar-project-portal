@@ -40,7 +40,9 @@ export async function PATCH(
       );
     }
 
-    if (existingTodo.project.organizationId !== session.user.organizationId) {
+    // 조직 확인: 프로젝트가 있으면 프로젝트의 조직, 없으면 직접 조직 확인
+    const todoOrgId = existingTodo.project?.organizationId ?? existingTodo.organizationId;
+    if (todoOrgId !== session.user.organizationId) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
@@ -176,7 +178,9 @@ export async function DELETE(
       );
     }
 
-    if (existingTodo.project.organizationId !== session.user.organizationId) {
+    // 조직 확인: 프로젝트가 있으면 프로젝트의 조직, 없으면 직접 조직 확인
+    const todoOrgId = existingTodo.project?.organizationId ?? existingTodo.organizationId;
+    if (todoOrgId !== session.user.organizationId) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 

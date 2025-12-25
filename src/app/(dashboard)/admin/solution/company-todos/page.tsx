@@ -73,7 +73,7 @@ interface Todo {
   dueDate: string | null;
   priority: string;
   completedDate: string | null;
-  project: { id: string; name: string };
+  project: { id: string; name: string } | null;
   assignee: { id: string; name: string | null } | null;
   createdBy: { id: string; name: string | null };
   createdAt: string;
@@ -174,7 +174,7 @@ export default function AllTodosPage() {
 
   const openEditDialog = (todo: Todo) => {
     setEditingTodo(todo);
-    setFormProjectId(todo.project.id);
+    setFormProjectId(todo.project?.id || "");
     setFormTitle(todo.title);
     setFormDescription(todo.description || "");
     setFormDueDate(todo.dueDate ? new Date(todo.dueDate) : undefined);
@@ -288,7 +288,7 @@ export default function AllTodosPage() {
                 </span>
                 <Badge variant="outline" className="text-xs">
                   <FolderKanban className="h-3 w-3 mr-1" />
-                  {todo.project.name}
+                  {todo.project?.name || "조직 할 일"}
                 </Badge>
                 <Badge className={`text-xs ${PRIORITY_COLORS[todo.priority]}`}>
                   {PRIORITY_OPTIONS.find((p) => p.value === todo.priority)?.label || todo.priority}
