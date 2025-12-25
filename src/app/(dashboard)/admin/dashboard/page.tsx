@@ -130,14 +130,16 @@ export default async function AdminDashboardPage() {
     parent: task.parent,
   }));
 
-  const formattedTodos = alertTodos.map((todo) => ({
-    id: todo.id,
-    title: todo.title,
-    dueDate: todo.dueDate?.toISOString() ?? null,
-    priority: todo.priority,
-    assigneeId: todo.assigneeId,
-    project: todo.project,
-  }));
+  const formattedTodos = alertTodos
+    .filter((todo) => todo.project !== null)
+    .map((todo) => ({
+      id: todo.id,
+      title: todo.title,
+      dueDate: todo.dueDate?.toISOString() ?? null,
+      priority: todo.priority,
+      assigneeId: todo.assigneeId,
+      project: todo.project!,
+    }));
 
   return (
     <DashboardContent
