@@ -145,6 +145,7 @@ export default function QuotationDetailPage({
   const [loading, setLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [kepcoVersion, setKepcoVersion] = useState(0);  // 한전불입금 저장 시 증가
 
   // 관리자 권한 체크 (CLIENT는 실행단가/실행금액 못 봄)
   const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
@@ -656,12 +657,14 @@ export default function QuotationDetailPage({
             <KepcoChargeCalculator
               quotationId={quotation.id}
               defaultCapacityKw={quotation.capacityKw || 0}
+              onSave={() => setKepcoVersion((v) => v + 1)}
             />
           </div>
         </TabsContent>
 
         <TabsContent value="analysis">
           <ProfitAnalysisForm
+            key={`analysis-${kepcoVersion}`}
             quotation={{
               id: quotation.id,
               quotationNumber: quotation.quotationNumber,
