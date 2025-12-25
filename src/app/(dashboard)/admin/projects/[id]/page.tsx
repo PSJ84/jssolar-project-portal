@@ -59,6 +59,7 @@ export default async function AdminProjectDetailPage({
               id: true,
               name: true,
               email: true,
+              role: true,
             },
           },
         },
@@ -165,6 +166,19 @@ export default async function AdminProjectDetailPage({
     orderBy: { name: "asc" },
   });
 
+  // 담당자 목록 = 어드민 + 프로젝트 멤버(사업주)
+  const projectMembers = project.members
+    .filter((m) => m.user)
+    .map((m) => ({
+      id: m.user!.id,
+      name: m.user!.name,
+    }));
+
+  // 중복 제거
+  const allAssignees = [...adminUsers, ...projectMembers].filter(
+    (user, index, self) => index === self.findIndex((u) => u.id === user.id)
+  );
+
   return (
     <div className="space-y-6">
       {/* Back Button */}
@@ -180,7 +194,7 @@ export default async function AdminProjectDetailPage({
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-xl md:text-3xl font-bold">{project.name}</h1>
           <Button variant="outline" size="sm" asChild>
-            <a href={`/projects/${project.id}`} target="_blank" rel="noopener noreferrer">
+            <a href={`/client/projects/${project.id}`} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4 mr-1" />
               사업주 화면
             </a>
@@ -305,13 +319,13 @@ export default async function AdminProjectDetailPage({
         );
       })()}
 
-      {/* Tabs - URL의 tab 파라미터 또는 진행 단계가 기본 선택 */}
+      {/* Tabs - URL의 tab 파라미터 또는 인허가가 기본 선택 */}
       <Tabs defaultValue={initialTab || "tasks"} className="space-y-4">
         <div className="-mx-4 md:mx-0">
           <div className="overflow-x-auto scrollbar-hide">
             <TabsList className="inline-flex w-max h-auto gap-1 px-4 md:px-0">
-            <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">진행 단계</TabsTrigger>
-            <TabsTrigger value="construction" className="flex-shrink-0 flex-none">공정표</TabsTrigger>
+            <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">인허가</TabsTrigger>
+            <TabsTrigger value="construction" className="flex-shrink-0 flex-none">시공</TabsTrigger>
             <TabsTrigger value="todos" className="flex-shrink-0 flex-none">할 일</TabsTrigger>
             <TabsTrigger value="quotations" className="flex-shrink-0 flex-none">견적서</TabsTrigger>
             <TabsTrigger value="budget" className="flex-shrink-0 flex-none">예산</TabsTrigger>
@@ -379,6 +393,7 @@ export default async function AdminProjectDetailPage({
               projectId: phase.projectId,
               name: phase.name,
               sortOrder: phase.sortOrder,
+              weight: phase.weight,
               items: phase.items.map((item) => ({
                 id: item.id,
                 phaseId: item.phaseId,
@@ -401,7 +416,7 @@ export default async function AdminProjectDetailPage({
           <TodoList
             projectId={project.id}
             isAdmin={true}
-            members={adminUsers}
+            members={allAssignees}
             initialTodos={project.todos.map((todo) => ({
               id: todo.id,
               title: todo.title,

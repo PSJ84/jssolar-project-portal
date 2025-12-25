@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserPlus, Trash2, Crown, User } from "lucide-react";
+import { UserPlus, Trash2, Crown, User, Eye } from "lucide-react";
 
 interface Member {
   id: string;
@@ -23,6 +23,7 @@ interface Member {
     id: string;
     name: string | null;
     email: string | null;
+    role?: string;
   } | null;
 }
 
@@ -189,6 +190,20 @@ export function MemberManagement({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* 사업주(CLIENT) 역할인 경우 시점 보기 버튼 표시 */}
+                  {member.user?.role === "CLIENT" && member.userId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        window.open(`/projects/${projectId}?view=client&as=${member.userId}`, '_blank');
+                      }}
+                      title="사업주 시점으로 보기"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      <span className="hidden sm:inline">시점 보기</span>
+                    </Button>
+                  )}
                   {!member.isOwner && (
                     <>
                       <Button

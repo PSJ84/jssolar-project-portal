@@ -73,6 +73,9 @@ model User {
   // v2.5: 지식노트
   knowledgeNotes            KnowledgeNote[]
 
+  // v3.2: 사업주 탭 표시 설정 (SUPER_ADMIN이 설정)
+  visibleTabs               Json?       // { home: true, permit: true, construction: true, quotation: true, documents: true }
+
   createdAt                 DateTime    @default(now())
   updatedAt          DateTime          @updatedAt
 }
@@ -152,8 +155,19 @@ model Project {
   quotations   Quotation[]    // 연결된 견적서
   budgetItems  BudgetItem[]   // v2.5: 예산 관리 (품목 기반)
   constructionPhases ConstructionPhase[]  // v3.0: 공정표
+  
+  // v3.1: 프로젝트 진행 단계 분리
+  phase          ProjectPhase   @default(PERMITTING)
+
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+}
+
+// v3.1: 프로젝트 진행 단계
+enum ProjectPhase {
+  PERMITTING    // 인허가 단계 (기본)
+  CONSTRUCTION  // 시공 단계
+  OPERATION     // 운영/준공 단계 (v4 예정)
 }
 
 // Project task checklist
@@ -743,6 +757,7 @@ model ConstructionPhase {
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name        String   // 대공정명 (인허가, 시공, 준공)
   sortOrder   Int      @default(0)
+  weight      Int      @default(0)  // 가중치 (%, 0~100)
   items       ConstructionItem[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

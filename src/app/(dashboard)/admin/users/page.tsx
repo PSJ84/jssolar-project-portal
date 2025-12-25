@@ -50,7 +50,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Loader2, Pencil, Trash2, UserPlus, ShieldAlert } from "lucide-react";
+import { CLIENT_TABS, DEFAULT_VISIBLE_TABS, ClientTabKey, parseVisibleTabs } from "@/lib/constants";
 
 interface Organization {
   id: string;
@@ -70,6 +72,7 @@ interface User {
   updatedAt: string;
   image: string | null;
   emailVerified: string | null;
+  visibleTabs: Record<ClientTabKey, boolean> | null;
 }
 
 type RoleFilter = "all" | "SUPER_ADMIN" | "ADMIN" | "CLIENT";
@@ -105,6 +108,7 @@ export default function AdminUsersPage() {
     organizationId: "",
     resetPassword: false,
     newPassword: "",
+    visibleTabs: { ...DEFAULT_VISIBLE_TABS } as Record<ClientTabKey, boolean>,
   });
 
   // SUPER_ADMIN 권한 체크
@@ -269,6 +273,15 @@ export default function AdminUsersPage() {
         throw new Error(error.error || "Failed to update user");
       }
 
+      // 사업주인 경우 탭 설정도 저장
+      if (editForm.role === "CLIENT") {
+        await fetch(`/api/admin/users/${selectedUser.id}/tabs`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visibleTabs: editForm.visibleTabs }),
+        });
+      }
+
       toast.success("사용자 정보가 수정되었습니다.");
       setEditDialogOpen(false);
       setSelectedUser(null);
@@ -321,8 +334,23 @@ export default function AdminUsersPage() {
   };
 
   // Open edit dialog
-  const openEditDialog = (user: User) => {
+  const openEditDialog = async (user: User) => {
     setSelectedUser(user);
+
+    // 사업주인 경우 탭 설정 로드
+    let visibleTabs = { ...DEFAULT_VISIBLE_TABS };
+    if (user.role === "CLIENT") {
+      try {
+        const response = await fetch(`/api/admin/users/${user.id}/tabs`);
+        if (response.ok) {
+          const data = await response.json();
+          visibleTabs = data.visibleTabs;
+        }
+      } catch (error) {
+        console.error("Error fetching user tabs:", error);
+      }
+    }
+
     setEditForm({
       username: user.username,
       name: user.name || "",
@@ -330,6 +358,7 @@ export default function AdminUsersPage() {
       organizationId: user.organizationId || "",
       resetPassword: false,
       newPassword: "",
+      visibleTabs,
     });
     setEditDialogOpen(true);
   };
@@ -685,6 +714,35 @@ export default function AdminUsersPage() {
                 />
               )}
             </div>
+
+            {/* 사업주 탭 설정 */}
+            {editForm.role === "CLIENT" && (
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="text-sm font-medium">표시할 탭 설정</Label>
+                <div className="space-y-2">
+                  {(Object.keys(CLIENT_TABS) as ClientTabKey[]).map((key) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <Label htmlFor={`tab-${key}`} className="text-sm font-normal">
+                        {CLIENT_TABS[key].label}
+                      </Label>
+                      <Switch
+                        id={`tab-${key}`}
+                        checked={editForm.visibleTabs[key]}
+                        onCheckedChange={(checked) =>
+                          setEditForm({
+                            ...editForm,
+                            visibleTabs: {
+                              ...editForm.visibleTabs,
+                              [key]: checked,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button

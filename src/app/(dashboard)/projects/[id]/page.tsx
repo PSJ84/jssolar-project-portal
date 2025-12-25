@@ -16,11 +16,14 @@ import {
   ArrowLeft,
   FolderOpen,
   RefreshCw,
+  Eye,
 } from "lucide-react";
 import { TaskListV2 } from "@/components/tasks/TaskListV2";
 import { ClientProgressSummary } from "@/components/tasks/ClientProgressSummary";
 import { ProjectQuotationList } from "@/components/quotation/ProjectQuotationList";
 import { ConstructionChart } from "@/components/construction/ConstructionChart";
+import { ProjectHomeTab } from "@/components/dashboard/ProjectHomeTab";
+import { parseVisibleTabs, ClientTabKey } from "@/lib/constants";
 
 const statusLabels: Record<ProjectStatus, string> = {
   ACTIVE: "진행중",
@@ -49,7 +52,13 @@ const CATEGORY_ORDER: DocumentCategory[] = [
   "OTHER",
 ];
 
-async function getProject(id: string, userId: string, userRole: string, organizationId?: string | null) {
+async function getProject(
+  id: string,
+  userId: string,
+  userRole: string,
+  organizationId?: string | null,
+  todoTargetUserId?: string // 할 일 필터링용 타겟 사용자
+) {
   try {
     // ADMIN/SUPER_ADMIN은 자신의 조직 프로젝트에 접근 가능
     const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
@@ -66,6 +75,9 @@ async function getProject(id: string, userId: string, userRole: string, organiza
         whereCondition.members = { some: { userId } };
       }
     }
+
+    // 할 일 필터링 대상 (시뮬레이션 모드면 타겟 사용자, 아니면 현재 사용자)
+    const todoAssigneeId = todoTargetUserId || userId;
 
     const project = await prisma.project.findFirst({
       where: whereCondition,
@@ -143,6 +155,23 @@ async function getProject(id: string, userId: string, userRole: string, organiza
           },
           orderBy: { sortOrder: "asc" },
         },
+        // 사업주 할 일 (홈 탭용)
+        todos: {
+          where: {
+            assigneeId: todoAssigneeId,
+          },
+          select: {
+            id: true,
+            title: true,
+            dueDate: true,
+            completedDate: true,
+          },
+          take: 5,
+          orderBy: [
+            { completedDate: "asc" },  // 미완료 먼저
+            { dueDate: "asc" },
+          ],
+        },
       },
     });
     return project;
@@ -152,10 +181,27 @@ async function getProject(id: string, userId: string, userRole: string, organiza
   }
 }
 
+// 회사 정보 조회 (담당자 전화번호용)
+async function getCompanyInfo() {
+  const configs = await prisma.systemConfig.findMany({
+    where: {
+      key: { in: ["COMPANY_NAME", "COMPANY_CEO", "COMPANY_PHONE"] },
+    },
+  });
+  const configMap = Object.fromEntries(configs.map((c) => [c.key, c.value]));
+  return {
+    companyName: configMap.COMPANY_NAME || "",
+    ceoName: configMap.COMPANY_CEO || null,
+    phone: configMap.COMPANY_PHONE || null,
+  };
+}
+
 export default async function ClientProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string; as?: string }>;
 }) {
   const session = await auth();
 
@@ -165,16 +211,52 @@ export default async function ClientProjectDetailPage({
 
   // Next.js 16: await params
   const { id } = await params;
-  const project = await getProject(
-    id,
-    session.user.id,
-    session.user.role,
-    session.user.organizationId
-  );
+  const { view, as: viewAsUserId } = await searchParams;
+
+  // 어드민이 사업주 시점으로 보는 경우 처리
+  const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+  const isSimulationMode = view === "client" && viewAsUserId && isAdmin;
+
+  // 시뮬레이션 모드면 타겟 사용자 ID 사용
+  const targetUserId = isSimulationMode ? viewAsUserId : session.user.id;
+
+  const [project, companyInfo, userWithTabs] = await Promise.all([
+    getProject(
+      id,
+      session.user.id,
+      session.user.role,
+      session.user.organizationId,
+      isSimulationMode ? viewAsUserId : undefined
+    ),
+    getCompanyInfo(),
+    // 사업주 탭 설정 조회 (시뮬레이션 모드면 타겟 사용자, 아니면 현재 사용자)
+    session.user.role === "CLIENT" || isSimulationMode
+      ? prisma.user.findUnique({
+          where: { id: targetUserId },
+          select: { visibleTabs: true, name: true },
+        })
+      : null,
+  ]);
 
   if (!project) {
     redirect("/projects");
   }
+
+  // 시뮬레이션 모드: 해당 사용자가 프로젝트 멤버인지 검증
+  let simulationUserName: string | null = null;
+  if (isSimulationMode) {
+    const isMember = project.members.some(m => m.userId === viewAsUserId);
+    if (!isMember) {
+      redirect("/projects");
+    }
+    simulationUserName = userWithTabs?.name || "사용자";
+  }
+
+  // view=client 쿼리 파라미터가 있으면 사업주 화면으로 강제 (어드민 미리보기용)
+  const isClient = session.user.role === "CLIENT" || view === "client";
+
+  // 사업주 탭 설정 파싱 (기본값: 모두 표시)
+  const visibleTabs = parseVisibleTabs(userWithTabs?.visibleTabs);
 
   // Sort documents by title and group by category (with custom category support)
   const sortedDocs = [...project.documents].sort((a, b) =>
@@ -225,6 +307,17 @@ export default async function ClientProjectDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* 시뮬레이션 모드 배너 */}
+      {isSimulationMode && simulationUserName && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+          <Eye className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{simulationUserName}</strong>님 시점으로 보는 중입니다.
+            이 화면은 해당 사업주가 보는 것과 동일합니다.
+          </span>
+        </div>
+      )}
+
       {/* Back Button */}
       <Button variant="ghost" asChild className="mb-2">
         <Link href="/projects">
@@ -274,17 +367,43 @@ export default async function ClientProjectDetailPage({
         </div>
       </div>
 
-      {/* Tabs - 개요가 첫 번째 탭 */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      {/* Tabs - 홈이 첫 번째 탭 (사업주), 개요가 첫 번째 탭 (관리자) */}
+      <Tabs defaultValue={isClient ? (visibleTabs.home ? "home" : "tasks") : "overview"} className="space-y-4">
         <div className="overflow-x-auto scrollbar-hide">
           <TabsList className="inline-flex w-max h-auto gap-1">
-            <TabsTrigger value="overview" className="flex-shrink-0 flex-none">개요</TabsTrigger>
-            <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">진행 단계</TabsTrigger>
-            <TabsTrigger value="construction" className="flex-shrink-0 flex-none">공정표</TabsTrigger>
-            <TabsTrigger value="quotations" className="flex-shrink-0 flex-none">견적서</TabsTrigger>
-            <TabsTrigger value="documents" className="flex-shrink-0 flex-none">
-              문서 ({project.documents.length})
-            </TabsTrigger>
+            {isClient ? (
+              // 사업주: visibleTabs 기준으로 탭 표시
+              <>
+                {visibleTabs.home && (
+                  <TabsTrigger value="home" className="flex-shrink-0 flex-none">홈</TabsTrigger>
+                )}
+                {visibleTabs.permit && (
+                  <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">인허가</TabsTrigger>
+                )}
+                {visibleTabs.construction && (
+                  <TabsTrigger value="construction" className="flex-shrink-0 flex-none">시공</TabsTrigger>
+                )}
+                {visibleTabs.quotation && (
+                  <TabsTrigger value="quotations" className="flex-shrink-0 flex-none">견적서</TabsTrigger>
+                )}
+                {visibleTabs.documents && (
+                  <TabsTrigger value="documents" className="flex-shrink-0 flex-none">
+                    문서 ({project.documents.length})
+                  </TabsTrigger>
+                )}
+              </>
+            ) : (
+              // 관리자/미리보기: 모든 탭 표시
+              <>
+                <TabsTrigger value="overview" className="flex-shrink-0 flex-none">개요</TabsTrigger>
+                <TabsTrigger value="tasks" className="flex-shrink-0 flex-none">인허가</TabsTrigger>
+                <TabsTrigger value="construction" className="flex-shrink-0 flex-none">시공</TabsTrigger>
+                <TabsTrigger value="quotations" className="flex-shrink-0 flex-none">견적서</TabsTrigger>
+                <TabsTrigger value="documents" className="flex-shrink-0 flex-none">
+                  문서 ({project.documents.length})
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
         </div>
 
@@ -369,6 +488,7 @@ export default async function ClientProjectDetailPage({
               projectId: phase.projectId,
               name: phase.name,
               sortOrder: phase.sortOrder,
+              weight: phase.weight,
               items: phase.items.map((item) => ({
                 id: item.id,
                 phaseId: item.phaseId,
@@ -428,6 +548,57 @@ export default async function ClientProjectDetailPage({
           />
         </TabsContent>
 
+        {/* 홈 탭 (사업주용) */}
+        <TabsContent value="home" className="space-y-4">
+          <ProjectHomeTab
+            project={{
+              id: project.id,
+              name: project.name,
+              location: project.location,
+              capacityKw: project.capacityKw,
+            }}
+            tasks={project.tasks.map((task) => ({
+              id: task.id,
+              name: task.name,
+              phase: task.phase,
+              completedDate: task.completedDate?.toISOString() ?? null,
+              isActive: task.isActive,
+              children: task.children.map((child) => ({
+                phase: child.phase,
+                completedDate: child.completedDate?.toISOString() ?? null,
+              })),
+            }))}
+            constructionPhases={project.constructionPhases.map((phase) => ({
+              id: phase.id,
+              name: phase.name,
+              weight: phase.weight,
+              items: phase.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                startDate: item.startDate?.toISOString() ?? null,
+                status: item.status,
+                progress: item.progress,
+              })),
+            }))}
+            activities={project.activities.slice(0, 5).map((activity) => ({
+              id: activity.id,
+              type: activity.type,
+              title: activity.title,
+              description: activity.description,
+              createdAt: activity.createdAt.toISOString(),
+              user: activity.user,
+            }))}
+            todos={project.todos.map((todo) => ({
+              id: todo.id,
+              title: todo.title,
+              dueDate: todo.dueDate?.toISOString() ?? null,
+              completedDate: todo.completedDate?.toISOString() ?? null,
+            }))}
+            companyInfo={companyInfo}
+          />
+        </TabsContent>
+
+        {/* 개요 탭 (관리자용) */}
         <TabsContent value="overview" className="space-y-4">
           <Card>
             <CardHeader>
