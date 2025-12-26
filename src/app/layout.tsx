@@ -13,6 +13,25 @@ const notoSansKR = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "JS Solar - 프로젝트 포털",
   description: "태양광 발전소 시공업체의 클라이언트 포털",
+  manifest: "/manifest.json",
+  themeColor: "#16a34a",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "JS Solar Portal",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icons/icon-512x512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/icon-192x192.svg" },
+    ],
+  },
 };
 
 export default function RootLayout({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyConstructionStatusChanged } from "@/lib/push-notification";
 
 // PATCH /api/projects/[id]/construction-items/[itemId] - 세부공정 수정
 export async function PATCH(
@@ -25,9 +26,15 @@ export async function PATCH(
       );
     }
 
-    const { itemId } = await params;
+    const { id: projectId, itemId } = await params;
     const body = await request.json();
     const { name, startDate, endDate, actualStart, actualEnd, progress, status, memo, sortOrder } = body;
+
+    // 기존 상태 확인 (알림용)
+    const existingItem = await prisma.constructionItem.findUnique({
+      where: { id: itemId },
+      select: { status: true, name: true },
+    });
 
     const item = await prisma.constructionItem.update({
       where: { id: itemId },
@@ -43,6 +50,21 @@ export async function PATCH(
         ...(sortOrder !== undefined && { sortOrder }),
       },
     });
+
+    // 시공 상태 변경 알림 (시작 또는 완료)
+    if (status && existingItem && status !== existingItem.status) {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true },
+      });
+      if (project) {
+        if (status === 'IN_PROGRESS' && existingItem.status === 'PLANNED') {
+          notifyConstructionStatusChanged(projectId, project.name, item.name, 'started').catch(console.error);
+        } else if (status === 'COMPLETED') {
+          notifyConstructionStatusChanged(projectId, project.name, item.name, 'completed').catch(console.error);
+        }
+      }
+    }
 
     return NextResponse.json(item);
   } catch (error) {

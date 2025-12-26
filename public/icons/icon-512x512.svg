@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#16a34a" rx="64"/>
+  <g fill="white">
+    <!-- Sun circle -->
+    <circle cx="256" cy="200" r="75"/>
+    <!-- Sun rays -->
+    <rect x="246" y="75" width="20" height="40" rx="10"/>
+    <rect x="246" y="285" width="20" height="40" rx="10"/>
+    <rect x="115" y="190" width="40" height="20" rx="10"/>
+    <rect x="357" y="190" width="40" height="20" rx="10"/>
+    <rect x="140" y="115" width="20" height="40" rx="10" transform="rotate(-45 150 135)"/>
+    <rect x="332" y="245" width="20" height="40" rx="10" transform="rotate(-45 342 265)"/>
+    <rect x="332" y="115" width="20" height="40" rx="10" transform="rotate(45 342 135)"/>
+    <rect x="140" y="245" width="20" height="40" rx="10" transform="rotate(45 150 265)"/>
+    <!-- Solar panel base -->
+    <rect x="128" y="345" width="256" height="16" rx="8"/>
+    <polygon points="150,361 192,425 320,425 362,361"/>
+  </g>
+  <text x="256" y="470" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="42" font-weight="bold">JS Solar</text>
+</svg>

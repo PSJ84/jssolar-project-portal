@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyProjectStatusChanged } from "@/lib/push-notification";
 
 // Helper function to check project access
 async function checkProjectAccess(projectId: string, userId: string, role: string) {
@@ -236,6 +237,20 @@ export async function PATCH(
 
       return updatedProject;
     });
+
+    // 프로젝트 상태 변경 시 사업주에게 알림 발송
+    if (status && status !== existingProject.status) {
+      const statusLabels: Record<string, string> = {
+        ACTIVE: '진행중',
+        COMPLETED: '완료',
+        ARCHIVED: '보관됨',
+      };
+      notifyProjectStatusChanged(
+        projectId,
+        project.name,
+        statusLabels[status] || status
+      ).catch(console.error);
+    }
 
     return NextResponse.json(project);
   } catch (error) {

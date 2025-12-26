@@ -24,9 +24,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Pencil, Key, User, Mail, Shield, Calculator, ChevronRight, Building } from "lucide-react";
+import { Loader2, Pencil, Key, User, Mail, Shield, Calculator, ChevronRight, Building, Bell } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface UserProfile {
   id: string;
@@ -75,6 +77,21 @@ export default function AdminSettingsPage() {
   });
   const [companyLoading, setCompanyLoading] = useState(false);
   const [companySaving, setCompanySaving] = useState(false);
+
+  // Notification settings state
+  const [notificationSettings, setNotificationSettings] = useState({
+    pushEnabled: true,
+    todoNotify: true,
+    projectNotify: true,
+    constructionNotify: true,
+    deadlineNotify: true,
+    weeklySummary: true,
+    quietHoursStart: null as number | null,
+    quietHoursEnd: null as number | null,
+  });
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const push = usePushNotifications();
 
   // Fetch profile
   const fetchProfile = async () => {
@@ -140,9 +157,56 @@ export default function AdminSettingsPage() {
     }
   };
 
+  // Fetch notification settings
+  const fetchNotificationSettings = async () => {
+    try {
+      setNotificationLoading(true);
+      const response = await fetch("/api/notifications/settings");
+      if (response.ok) {
+        const data = await response.json();
+        setNotificationSettings({
+          pushEnabled: data.pushEnabled ?? true,
+          todoNotify: data.todoNotify ?? true,
+          projectNotify: data.projectNotify ?? true,
+          constructionNotify: data.constructionNotify ?? true,
+          deadlineNotify: data.deadlineNotify ?? true,
+          weeklySummary: data.weeklySummary ?? true,
+          quietHoursStart: data.quietHoursStart,
+          quietHoursEnd: data.quietHoursEnd,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching notification settings:", error);
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  // Update notification setting
+  const updateNotificationSetting = async (key: string, value: boolean | number | null) => {
+    try {
+      setNotificationSaving(true);
+      const response = await fetch("/api/notifications/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (response.ok) {
+        setNotificationSettings((prev) => ({ ...prev, [key]: value }));
+        toast.success("알림 설정이 저장되었습니다.");
+      }
+    } catch (error) {
+      console.error("Error updating notification settings:", error);
+      toast.error("알림 설정 저장에 실패했습니다.");
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
     fetchCompanyInfo();
+    fetchNotificationSettings();
   }, []);
 
   // Validate password
@@ -614,6 +678,143 @@ export default function AdminSettingsPage() {
             <p>모듈, 인버터, 구조물, 인건비 등의 단가를 카테고리별로 관리할 수 있습니다.</p>
             <p className="mt-1">SMP, REC 단가, 피크시간 등 수익분석에 사용되는 시스템 설정도 함께 관리합니다.</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Notification Settings Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            푸시 알림 설정
+          </CardTitle>
+          <CardDescription>
+            중요한 업데이트를 실시간으로 받을 수 있도록 알림을 설정합니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {notificationLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Push Subscription Status */}
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">푸시 알림 구독</p>
+                    <p className="text-sm text-muted-foreground">
+                      {push.isLoading
+                        ? "확인 중..."
+                        : !push.isSupported
+                        ? "이 브라우저에서는 푸시 알림을 지원하지 않습니다."
+                        : push.isSubscribed
+                        ? "푸시 알림이 활성화되어 있습니다."
+                        : push.permission === "denied"
+                        ? "브라우저에서 알림 권한이 차단되었습니다."
+                        : "푸시 알림을 활성화하세요."}
+                    </p>
+                  </div>
+                  {push.isSupported && (
+                    <Button
+                      variant={push.isSubscribed ? "outline" : "default"}
+                      size="sm"
+                      disabled={push.isLoading || push.permission === "denied"}
+                      onClick={() => push.isSubscribed ? push.unsubscribe() : push.subscribe()}
+                    >
+                      {push.isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : push.isSubscribed ? (
+                        "구독 해제"
+                      ) : (
+                        "알림 받기"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Notification Types */}
+              <div className="space-y-4">
+                <p className="text-sm font-medium">알림 유형</p>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">전체 알림</p>
+                    <p className="text-sm text-muted-foreground">모든 푸시 알림 활성화/비활성화</p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.pushEnabled}
+                    onCheckedChange={(checked) => updateNotificationSetting("pushEnabled", checked)}
+                    disabled={notificationSaving}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">할일 알림</p>
+                    <p className="text-sm text-muted-foreground">새 할일 배정, 완료 알림</p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.todoNotify}
+                    onCheckedChange={(checked) => updateNotificationSetting("todoNotify", checked)}
+                    disabled={notificationSaving || !notificationSettings.pushEnabled}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">프로젝트 알림</p>
+                    <p className="text-sm text-muted-foreground">프로젝트 상태 변경, 멤버 초대 알림</p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.projectNotify}
+                    onCheckedChange={(checked) => updateNotificationSetting("projectNotify", checked)}
+                    disabled={notificationSaving || !notificationSettings.pushEnabled}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">시공 알림</p>
+                    <p className="text-sm text-muted-foreground">공정 시작/완료 알림</p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.constructionNotify}
+                    onCheckedChange={(checked) => updateNotificationSetting("constructionNotify", checked)}
+                    disabled={notificationSaving || !notificationSettings.pushEnabled}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">마감 알림</p>
+                    <p className="text-sm text-muted-foreground">기한 임박, 초과 알림</p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.deadlineNotify}
+                    onCheckedChange={(checked) => updateNotificationSetting("deadlineNotify", checked)}
+                    disabled={notificationSaving || !notificationSettings.pushEnabled}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">주간 요약</p>
+                    <p className="text-sm text-muted-foreground">매주 월요일 주간 요약 알림</p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.weeklySummary}
+                    onCheckedChange={(checked) => updateNotificationSetting("weeklySummary", checked)}
+                    disabled={notificationSaving || !notificationSettings.pushEnabled}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

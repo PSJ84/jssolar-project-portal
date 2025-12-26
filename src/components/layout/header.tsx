@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, User } from "lucide-react";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 
 interface HeaderProps {
   userName?: string | null;
@@ -45,7 +46,9 @@ export function Header({ userName, userRole }: HeaderProps) {
         )}
       </div>
 
-      <DropdownMenu>
+      <div className="flex items-center gap-2">
+        <NotificationDropdown />
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-10 w-10 rounded-full">
             <Avatar>
@@ -74,6 +77,7 @@ export function Header({ userName, userRole }: HeaderProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </header>
   );
 }

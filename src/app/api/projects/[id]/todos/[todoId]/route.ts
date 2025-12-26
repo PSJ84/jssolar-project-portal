@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TodoPriority } from "@prisma/client";
+import { notifyTodoAssigned, notifyTodoCompleted } from "@/lib/push-notification";
 
 // PATCH /api/projects/[id]/todos/[todoId] - 할 일 수정/완료
 export async function PATCH(
@@ -115,6 +116,17 @@ export async function PATCH(
         completedBy: { select: { id: true, name: true } },
       },
     });
+
+    // 담당자 변경 시 알림 발송
+    if (assigneeId !== undefined && assigneeId !== existingTodo.assigneeId && assigneeId !== session.user.id) {
+      notifyTodoAssigned(todo.id, assigneeId, todo.title, projectId).catch(console.error);
+    }
+
+    // 할일 완료 시 관리자에게 알림 발송
+    if (updateData.completedDate && !existingTodo.completedDate) {
+      const completedByName = session.user.name || '담당자';
+      notifyTodoCompleted(todo.id, projectId, todo.title, completedByName).catch(console.error);
+    }
 
     return NextResponse.json(todo);
   } catch (error) {

@@ -79,6 +79,11 @@ model User {
   // v3.2: 사업주 탭 표시 설정 (SUPER_ADMIN이 설정)
   visibleTabs               Json?       // { home: true, permit: true, construction: true, quotation: true, documents: true }
 
+  // v3.3: PWA 푸시 알림
+  pushSubscriptions         PushSubscription[]
+  notificationSetting       NotificationSetting?
+  notifications             Notification[]
+
   createdAt                 DateTime    @default(now())
   updatedAt          DateTime          @updatedAt
 }
@@ -546,6 +551,19 @@ model SystemConfig {
   updatedAt   DateTime @updatedAt
 }
 
+// SMP/REC 연도별 단가 이력
+model SmpRecHistory {
+  id        String   @id @default(cuid())
+  year      Int      @unique  // 연도 (2005~현재)
+  smpPrice  Float             // SMP 평균단가 (원/kWh)
+  recPrice  Float             // REC 평균단가 (원/REC)
+  note      String?           // 메모/비고
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year])
+}
+
 // 견적 상태
 enum QuotationStatus {
   DRAFT       // 작성중
@@ -605,6 +623,13 @@ model Quotation {
 
   // 수익분석
   analyses        ProfitAnalysis[]
+
+  // 수익분석 파라미터 (견적서별 저장)
+  profitAnalysisParams Json?   // { peakHours, degradationRate, smpPrice, recPrice, ... }
+
+  // 사업주에게 공개된 수익분석 결과
+  publishedProfitAnalysis Json?   // { results, params, publishedAt }
+  publishedProfitAnalysisAt DateTime?  // 공개일시
 
   // 한전불입금
   kepcoCharge     KepcoCharge?
@@ -860,4 +885,66 @@ model BudgetTransaction {
   updatedAt     DateTime @updatedAt
 
   @@index([budgetItemId, date])
+}
+
+// ==================== PWA 푸시 알림 시스템 ====================
+
+// 알림 유형
+enum NotificationType {
+  TODO           // 할일 알림
+  PROJECT        // 프로젝트 알림
+  PERMIT         // 인허가 알림
+  CONSTRUCTION   // 시공 알림
+  DEADLINE       // 마감 알림
+  WEEKLY         // 주간 요약
+}
+
+// 푸시 구독 정보
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// 알림 설정
+model NotificationSetting {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 알림 유형별 ON/OFF
+  pushEnabled         Boolean  @default(true)
+  todoNotify          Boolean  @default(true)
+  projectNotify       Boolean  @default(true)
+  constructionNotify  Boolean  @default(true)
+  deadlineNotify      Boolean  @default(true)
+  weeklySummary       Boolean  @default(true)
+
+  // 방해금지 시간 (선택)
+  quietHoursStart     Int?     // 22 (오후 10시)
+  quietHoursEnd       Int?     // 8 (오전 8시)
+
+  updatedAt           DateTime @updatedAt
+}
+
+// 알림 이력
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  url       String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }

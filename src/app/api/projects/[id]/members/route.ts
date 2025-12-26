@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
+import { notifyProjectInvite } from "@/lib/push-notification";
 
 // GET /api/projects/[id]/members - 프로젝트 멤버 목록 조회
 export async function GET(
@@ -215,6 +216,11 @@ export async function POST(
 
       return newMember;
     });
+
+    // 기존 사용자에게 프로젝트 초대 알림 발송
+    if (existingUser?.id) {
+      notifyProjectInvite(existingUser.id, projectId, project.name).catch(console.error);
+    }
 
     return NextResponse.json(member, { status: 201 });
   } catch (error) {

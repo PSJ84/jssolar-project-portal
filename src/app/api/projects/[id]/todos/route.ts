@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TodoPriority } from "@prisma/client";
+import { notifyTodoAssigned } from "@/lib/push-notification";
 
 // GET /api/projects/[id]/todos - 할 일 목록 조회
 export async function GET(
@@ -129,6 +130,11 @@ export async function POST(
         completedBy: { select: { id: true, name: true } },
       },
     });
+
+    // 할일 배정 시 알림 발송
+    if (assigneeId && assigneeId !== session.user.id) {
+      notifyTodoAssigned(todo.id, assigneeId, title.trim(), projectId).catch(console.error);
+    }
 
     return NextResponse.json(todo, { status: 201 });
   } catch (error) {
