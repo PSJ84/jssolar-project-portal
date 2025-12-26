@@ -14,33 +14,29 @@ import {
   Sun,
   Building2,
   ListTodo,
-  LayoutDashboard,
   FileText,
-  Lightbulb,
   CheckSquare,
   BookOpen,
   DollarSign,
+  Home,
 } from "lucide-react";
 
-const navigation = [
-  { name: "프로젝트 현황", href: "/admin/dashboard", icon: LayoutDashboard },
-  { name: "프로젝트 관리", href: "/admin/projects", icon: FolderKanban },
-  { name: "견적 관리", href: "/admin/quotations", icon: FileText },
-  { name: "템플릿 관리", href: "/admin/templates", icon: ListTodo },
+// JSSOLAR 메인 메뉴 (모든 관리자)
+const mainNavigation = [
+  { name: "홈", href: "/admin/dashboard", icon: Home },
+  { name: "프로젝트", href: "/admin/projects", icon: FolderKanban },
+  { name: "견적서", href: "/admin/quotations", icon: FileText },
+  { name: "전체 할 일", href: "/admin/solution/company-todos", icon: CheckSquare },
+  { name: "지식노트", href: "/admin/solution/knowledge", icon: BookOpen },
+  { name: "예산", href: "/admin/solution/budget", icon: DollarSign },
   { name: "설정", href: "/admin/settings", icon: Settings },
 ];
 
-const solutionNavigation = [
-  { name: "대시보드", href: "/admin/solution", icon: Lightbulb },
-  { name: "전체 할 일", href: "/admin/solution/company-todos", icon: CheckSquare },
-  { name: "지식노트", href: "/admin/solution/knowledge", icon: BookOpen },
-  { name: "예산 현황", href: "/admin/solution/budget", icon: DollarSign },
-];
-
+// SUPER ADMIN 전용 메뉴
 const superAdminNavigation = [
-  { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "조직 관리", href: "/super/organizations", icon: Building2 },
   { name: "전체 프로젝트", href: "/super/projects", icon: FolderKanban },
+  { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "템플릿 관리", href: "/super/templates", icon: ListTodo },
 ];
 
@@ -55,6 +51,19 @@ export function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
+  };
+
+  // 메뉴 활성화 체크 함수
+  const isMenuActive = (href: string) => {
+    if (href === "/admin/dashboard") {
+      // 홈은 정확히 일치하거나 /admin/solution 일 때만 (기존 대시보드 호환)
+      return pathname === href || pathname === "/admin/solution";
+    }
+    if (href === "/admin/projects") {
+      // 프로젝트는 /admin/projects로 시작하지만 /admin/projects/new도 포함
+      return pathname.startsWith(href);
+    }
+    return pathname.startsWith(href);
   };
 
   return (
@@ -72,9 +81,33 @@ export function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
 
       {/* Navigation */}
       <nav className="px-4 space-y-1 flex-1">
+        {/* JSSOLAR 메인 메뉴 */}
+        <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
+          JSSOLAR
+        </p>
+        {mainNavigation.map((item) => {
+          const isActive = isMenuActive(item.href);
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </Link>
+          );
+        })}
+
         {/* Super Admin Menu */}
         {isSuperAdmin && (
           <>
+            <div className="my-3 border-b" />
             <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
               Super Admin
             </p>
@@ -96,54 +129,8 @@ export function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
                 </Link>
               );
             })}
-            <div className="my-3 border-b" />
           </>
         )}
-
-        {/* Regular Admin Menu */}
-        {navigation.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          );
-        })}
-
-        {/* JSSOLAR 메뉴 */}
-        <div className="my-3 border-b" />
-        <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-          JSSOLAR
-        </p>
-        {solutionNavigation.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== "/admin/solution" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          );
-        })}
       </nav>
 
       {/* User info and Logout */}
