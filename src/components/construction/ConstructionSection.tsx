@@ -19,6 +19,7 @@ export function ConstructionSection({
 
   return (
     <div className="space-y-6">
+      <ConstructionChart phases={phases} />
       {isAdmin && (
         <ConstructionScheduleEditor
           projectId={projectId}
@@ -26,7 +27,6 @@ export function ConstructionSection({
           onPhasesChange={setPhases}
         />
       )}
-      <ConstructionChart phases={phases} />
     </div>
   );
 }

@@ -238,105 +238,6 @@ export default async function AdminProjectDetailPage({
         </div>
       </div>
 
-      {/* 요약 바 - 컴팩트한 한 줄 */}
-      {(() => {
-        // 태스크 통계 계산
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const activeTasks = project.tasks.filter(t => t.isActive);
-        const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
-        const totalTasks = allChildTasks.length;
-        const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
-
-        // 진행중: startDate가 오늘 이하이고 미완료
-        const inProgressTasks = allChildTasks.filter(c => {
-          if (c.completedDate) return false;
-          if (!c.startDate) return false;
-          const start = new Date(c.startDate);
-          start.setHours(0, 0, 0, 0);
-          return start <= today;
-        }).length;
-
-        // 대기: startDate 없거나 미래
-        const waitingTasks = allChildTasks.filter(c => {
-          if (c.completedDate) return false;
-          if (!c.startDate) return true;
-          const start = new Date(c.startDate);
-          start.setHours(0, 0, 0, 0);
-          return start > today;
-        }).length;
-        const overdueTasks = allChildTasks.filter(c => {
-          if (c.completedDate) return false;
-          if (!c.dueDate) return false;
-          const due = new Date(c.dueDate);
-          due.setHours(0, 0, 0, 0);
-          return due < today;
-        }).length;
-
-        // 가중치 기반 진행률 계산
-        const progressPercent = totalTasks > 0
-          ? calculateWeightedProgress(allChildTasks.map(c => ({ phase: c.phase, completedDate: c.completedDate })))
-          : 0;
-
-        return (
-          <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/30 rounded-lg border">
-            {/* 진행률 */}
-            <div className="flex items-center gap-2 min-w-[120px]">
-              <Progress value={progressPercent} className="h-2 w-16" />
-              <span className="text-sm font-medium">{progressPercent}%</span>
-              <span className="text-xs text-muted-foreground">({completedTasks}/{totalTasks})</span>
-            </div>
-
-            <span className="text-muted-foreground">·</span>
-
-            {/* 상태별 카운트 */}
-            <div className="flex items-center gap-3 text-sm">
-              <span className="flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                완료 {completedTasks}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5 text-yellow-500" />
-                진행 {inProgressTasks}
-              </span>
-              <span className="flex items-center gap-1">
-                <ListTodo className="h-3.5 w-3.5 text-gray-400" />
-                대기 {waitingTasks}
-              </span>
-              {overdueTasks > 0 && (
-                <span className="flex items-center gap-1 text-destructive font-medium">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  지연 {overdueTasks}
-                </span>
-              )}
-            </div>
-
-            <span className="text-muted-foreground">·</span>
-
-            {/* 상태 배지 */}
-            <Badge
-              variant={
-                project.status === "ACTIVE"
-                  ? "default"
-                  : project.status === "COMPLETED"
-                  ? "secondary"
-                  : "outline"
-              }
-              className="text-xs"
-            >
-              {statusLabels[project.status]}
-            </Badge>
-
-            {/* 멤버 */}
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Users className="h-3.5 w-3.5" />
-              {project.members.length}명
-            </span>
-          </div>
-        );
-      })()}
-
       {/* Tabs - URL의 tab 파라미터 또는 인허가가 기본 선택 */}
       <Tabs defaultValue={initialTab || "tasks"} className="space-y-4">
         <div className="-mx-4 md:mx-0">
@@ -361,6 +262,78 @@ export default async function AdminProjectDetailPage({
 
         {/* 진행 단계 탭 */}
         <TabsContent value="tasks" className="space-y-4">
+          {/* 요약 바 */}
+          {(() => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const activeTasks = project.tasks.filter(t => t.isActive);
+            const allChildTasks = activeTasks.flatMap(t => t.children.filter(c => c.isActive));
+            const totalTasks = allChildTasks.length;
+            const completedTasks = allChildTasks.filter(c => c.completedDate !== null).length;
+
+            const inProgressTasks = allChildTasks.filter(c => {
+              if (c.completedDate) return false;
+              if (!c.startDate) return false;
+              const start = new Date(c.startDate);
+              start.setHours(0, 0, 0, 0);
+              return start <= today;
+            }).length;
+
+            const waitingTasks = allChildTasks.filter(c => {
+              if (c.completedDate) return false;
+              if (!c.startDate) return true;
+              const start = new Date(c.startDate);
+              start.setHours(0, 0, 0, 0);
+              return start > today;
+            }).length;
+
+            const overdueTasks = allChildTasks.filter(c => {
+              if (c.completedDate) return false;
+              if (!c.dueDate) return false;
+              const due = new Date(c.dueDate);
+              due.setHours(0, 0, 0, 0);
+              return due < today;
+            }).length;
+
+            const progressPercent = totalTasks > 0
+              ? calculateWeightedProgress(allChildTasks.map(c => ({ phase: c.phase, completedDate: c.completedDate })))
+              : 0;
+
+            return (
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/30 rounded-lg border">
+                <div className="flex items-center gap-2 min-w-[120px]">
+                  <Progress value={progressPercent} className="h-2 w-16" />
+                  <span className="text-sm font-medium">{progressPercent}%</span>
+                  <span className="text-xs text-muted-foreground">({completedTasks}/{totalTasks})</span>
+                </div>
+
+                <span className="text-muted-foreground">·</span>
+
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    완료 {completedTasks}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-yellow-500" />
+                    진행 {inProgressTasks}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <ListTodo className="h-3.5 w-3.5 text-gray-400" />
+                    대기 {waitingTasks}
+                  </span>
+                  {overdueTasks > 0 && (
+                    <span className="flex items-center gap-1 text-destructive font-medium">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      지연 {overdueTasks}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           <TaskListV2
             projectId={project.id}
             tasks={project.tasks.map((task) => {
