@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ProjectStatus, ChecklistStatus } from "@prisma/client";
-import { MapPin, Zap, Calendar, ArrowLeft, Users, Clock, CheckCircle2, AlertTriangle, ListTodo, ClipboardList, DollarSign, ExternalLink } from "lucide-react";
+import { MapPin, Zap, Calendar, ArrowLeft, Clock, CheckCircle2, AlertTriangle, ListTodo } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { MemberManagement } from "@/components/project/member-management";
 import { DocumentManagement } from "@/components/project/document-management";
@@ -209,15 +209,7 @@ export default async function AdminProjectDetailPage({
 
       {/* Header */}
       <div>
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-xl md:text-3xl font-bold">{project.name}</h1>
-          <Button variant="outline" size="sm" asChild>
-            <a href={`/client/projects/${project.id}`} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-1" />
-              사업주 화면
-            </a>
-          </Button>
-        </div>
+        <h1 className="text-xl md:text-3xl font-bold">{project.name}</h1>
         <div className="flex items-center gap-2 md:gap-4 mt-2 flex-wrap text-sm">
           {project.location && (
             <div className="flex items-center text-muted-foreground">
