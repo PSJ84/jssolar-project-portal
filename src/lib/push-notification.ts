@@ -2,13 +2,32 @@ import webpush from 'web-push';
 import { prisma } from '@/lib/prisma';
 import { NotificationType } from '@prisma/client';
 
-// VAPID 설정
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:psj@jssolar.kr',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
+// VAPID 설정 - Lazy initialization
+let vapidConfigured = false;
+
+function ensureVapidConfigured(): boolean {
+  if (vapidConfigured) return true;
+
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+  if (!publicKey || !privateKey || publicKey.length < 10 || privateKey.length < 10) {
+    console.warn('[Push] VAPID keys not configured');
+    return false;
+  }
+
+  try {
+    webpush.setVapidDetails(
+      'mailto:psj@jssolar.kr',
+      publicKey,
+      privateKey
+    );
+    vapidConfigured = true;
+    return true;
+  } catch (error) {
+    console.error('[Push] Failed to configure VAPID:', error);
+    return false;
+  }
 }
 
 interface PushPayload {
@@ -61,6 +80,11 @@ export async function sendPushToUser(
   payload: PushPayload
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // 0. VAPID 설정 확인
+    if (!ensureVapidConfigured()) {
+      return { success: false, error: 'VAPID not configured' };
+    }
+
     // 1. 사용자 알림 설정 확인
     const setting = await prisma.notificationSetting.findUnique({
       where: { userId },
