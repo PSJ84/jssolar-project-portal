@@ -97,6 +97,7 @@ export default function AdminUsersPage() {
   const [createForm, setCreateForm] = useState({
     username: "",
     name: "",
+    email: "",
     password: "",
     role: "CLIENT" as "ADMIN" | "CLIENT",
     organizationId: "",
@@ -104,6 +105,7 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState({
     username: "",
     name: "",
+    email: "",
     role: "CLIENT" as "SUPER_ADMIN" | "ADMIN" | "CLIENT",
     organizationId: "",
     resetPassword: false,
@@ -222,7 +224,7 @@ export default function AdminUsersPage() {
 
       toast.success("사용자가 생성되었습니다.");
       setCreateDialogOpen(false);
-      setCreateForm({ username: "", name: "", password: "", role: "CLIENT", organizationId: "" });
+      setCreateForm({ username: "", name: "", email: "", password: "", role: "CLIENT", organizationId: "" });
       fetchUsers();
     } catch (error) {
       console.error("Error creating user:", error);
@@ -248,12 +250,14 @@ export default function AdminUsersPage() {
       const updateData: {
         username?: string;
         name?: string;
+        email?: string;
         role?: string;
         password?: string;
         organizationId?: string;
       } = {
         username: editForm.username,
         name: editForm.name,
+        email: editForm.email || undefined,
         role: editForm.role,
         organizationId: editForm.organizationId,
       };
@@ -354,6 +358,7 @@ export default function AdminUsersPage() {
     setEditForm({
       username: user.username,
       name: user.name || "",
+      email: user.email || "",
       role: user.role,
       organizationId: user.organizationId || "",
       resetPassword: false,
@@ -453,6 +458,18 @@ export default function AdminUsersPage() {
                   value={createForm.name}
                   onChange={(e) =>
                     setCreateForm({ ...createForm, name: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-email">이메일 (선택)</Label>
+                <Input
+                  id="create-email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={createForm.email}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, email: e.target.value })
                   }
                 />
               </div>
@@ -560,6 +577,7 @@ export default function AdminUsersPage() {
                   <TableRow>
                     <TableHead>아이디</TableHead>
                     <TableHead>이름</TableHead>
+                    <TableHead>이메일</TableHead>
                     <TableHead>소속 조직</TableHead>
                     <TableHead>역할</TableHead>
                     <TableHead>가입일</TableHead>
@@ -573,6 +591,9 @@ export default function AdminUsersPage() {
                         {user.username}
                       </TableCell>
                       <TableCell>{user.name || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {user.email || "-"}
+                      </TableCell>
                       <TableCell>
                         {user.organization?.name || "-"}
                       </TableCell>
@@ -662,6 +683,18 @@ export default function AdminUsersPage() {
                 value={editForm.name}
                 onChange={(e) =>
                   setEditForm({ ...editForm, name: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">이메일 (선택)</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                placeholder="user@example.com"
+                value={editForm.email}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, email: e.target.value })
                 }
               />
             </div>

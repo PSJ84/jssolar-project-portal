@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,8 @@ import {
   User,
   FolderKanban,
   Loader2,
+  Building2,
+  CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -97,7 +100,8 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export default function AllTodosPage() {
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const { data: session } = useSession();
+  const [allTodos, setAllTodos] = useState<Todo[]>([]); // 전체 데이터 저장
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,14 +114,16 @@ export default function AllTodosPage() {
   const [deletingTodoId, setDeletingTodoId] = useState<string | null>(null);
 
   // 새 할일 폼
-  const [formProjectId, setFormProjectId] = useState("");
+  const [formProjectId, setFormProjectId] = useState("__company__"); // 기본값: 회사 할일
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formDueDate, setFormDueDate] = useState<Date | undefined>();
+  const [formCompletedDate, setFormCompletedDate] = useState<Date | undefined>(); // 완료일 추가
   const [formPriority, setFormPriority] = useState("MEDIUM");
   const [formAssigneeId, setFormAssigneeId] = useState("__none__");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 전체 데이터 1회 로드 (탭 변경 시 API 호출 안함)
   const fetchTodos = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -125,27 +131,23 @@ export default function AllTodosPage() {
       if (projectFilter !== "ALL") {
         params.set("projectId", projectFilter);
       }
-      if (tab === "completed") {
-        params.set("completed", "true");
-      } else if (tab === "active") {
-        params.set("completed", "false");
-      }
+      // completed 파라미터 제거 - 전체 데이터 로드
 
       const res = await fetch(`/api/admin/todos?${params}`);
       if (!res.ok) throw new Error("Failed to fetch todos");
       const data = await res.json();
-      setTodos(data.todos);
+      setAllTodos(data.todos);
       setProjects(data.projects);
     } catch {
       toast.error("할 일 목록을 불러오는데 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }, [projectFilter, tab]);
+  }, [projectFilter]); // tab 의존성 제거
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("/api/users");
+      const res = await fetch("/api/admin/organization-users");
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
       setUsers(data);
@@ -162,22 +164,48 @@ export default function AllTodosPage() {
     fetchUsers();
   }, []);
 
+  // 현재 사용자를 담당자 기본값으로 설정
+  useEffect(() => {
+    if (session?.user?.id && formAssigneeId === "__none__" && !editingTodo) {
+      setFormAssigneeId(session.user.id);
+    }
+  }, [session?.user?.id, editingTodo]);
+
+  // 클라이언트 필터링으로 탭별 데이터 계산
+  const activeTodos = useMemo(() => allTodos.filter((t) => !t.completedDate), [allTodos]);
+  const completedTodos = useMemo(() => allTodos.filter((t) => t.completedDate), [allTodos]);
+
+  // 현재 탭에 표시할 데이터
+  const displayTodos = useMemo(() => {
+    switch (tab) {
+      case "active":
+        return activeTodos;
+      case "completed":
+        return completedTodos;
+      default:
+        return allTodos;
+    }
+  }, [tab, activeTodos, completedTodos, allTodos]);
+
   const resetForm = () => {
-    setFormProjectId("");
+    setFormProjectId("__company__"); // 기본값: 회사 할일
     setFormTitle("");
     setFormDescription("");
     setFormDueDate(undefined);
+    setFormCompletedDate(undefined);
     setFormPriority("MEDIUM");
-    setFormAssigneeId("__none__");
+    // 현재 사용자를 기본 담당자로 설정
+    setFormAssigneeId(session?.user?.id || "__none__");
     setEditingTodo(null);
   };
 
   const openEditDialog = (todo: Todo) => {
     setEditingTodo(todo);
-    setFormProjectId(todo.project?.id || "");
+    setFormProjectId(todo.project?.id || "__company__");
     setFormTitle(todo.title);
     setFormDescription(todo.description || "");
     setFormDueDate(todo.dueDate ? new Date(todo.dueDate) : undefined);
+    setFormCompletedDate(todo.completedDate ? new Date(todo.completedDate) : undefined);
     setFormPriority(todo.priority);
     setFormAssigneeId(todo.assignee?.id || "__none__");
     setIsDialogOpen(true);
@@ -185,15 +213,16 @@ export default function AllTodosPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim() || !formProjectId) return;
+    if (!formTitle.trim()) return;
 
     setIsSubmitting(true);
     try {
       const payload = {
-        projectId: formProjectId,
+        projectId: formProjectId === "__company__" ? null : formProjectId, // null로 보내야 API에서 처리됨
         title: formTitle.trim(),
         description: formDescription.trim() || undefined,
         dueDate: formDueDate,
+        completedDate: formCompletedDate, // 완료일 추가
         priority: formPriority,
         assigneeId: formAssigneeId !== "__none__" ? formAssigneeId : undefined,
       };
@@ -262,9 +291,6 @@ export default function AllTodosPage() {
     }
   };
 
-  const activeTodos = todos.filter((t) => !t.completedDate);
-  const completedTodos = todos.filter((t) => t.completedDate);
-
   const renderTodoItem = (todo: Todo) => {
     const dday = getDday(todo.dueDate);
 
@@ -288,7 +314,7 @@ export default function AllTodosPage() {
                 </span>
                 <Badge variant="outline" className="text-xs">
                   <FolderKanban className="h-3 w-3 mr-1" />
-                  {todo.project?.name || "조직 할 일"}
+                  {todo.project?.name || "회사 할 일"}
                 </Badge>
                 <Badge className={`text-xs ${PRIORITY_COLORS[todo.priority]}`}>
                   {PRIORITY_OPTIONS.find((p) => p.value === todo.priority)?.label || todo.priority}
@@ -390,15 +416,24 @@ export default function AllTodosPage() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">프로젝트 *</label>
+                  <label className="text-sm font-medium mb-1 block">소속</label>
                   <Select value={formProjectId} onValueChange={setFormProjectId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="프로젝트 선택" />
+                      <SelectValue placeholder="소속 선택" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__company__">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          <span>회사 할 일</span>
+                        </div>
+                      </SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
-                          {project.name}
+                          <div className="flex items-center gap-2">
+                            <FolderKanban className="h-4 w-4" />
+                            <span>{project.name}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -469,6 +504,50 @@ export default function AllTodosPage() {
                   </div>
                 </div>
 
+                {/* 완료일 필드 (수정 시에만 표시) */}
+                {editingTodo && (
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">
+                      <CheckCircle2 className="inline h-4 w-4 mr-1" />
+                      완료일
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formCompletedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formCompletedDate
+                            ? format(formCompletedDate, "PPP", { locale: ko })
+                            : "미완료"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <div className="p-2 border-b">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setFormCompletedDate(undefined)}
+                          >
+                            미완료로 설정
+                          </Button>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={formCompletedDate}
+                          onSelect={setFormCompletedDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-sm font-medium mb-1 block">담당자</label>
                   <Select value={formAssigneeId} onValueChange={setFormAssigneeId}>
@@ -501,7 +580,7 @@ export default function AllTodosPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !formTitle.trim() || !formProjectId}
+                    disabled={isSubmitting || !formTitle.trim()}
                   >
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {editingTodo ? "수정" : "추가"}
@@ -537,12 +616,13 @@ export default function AllTodosPage() {
             <TabsList className="mb-4">
               <TabsTrigger value="active">진행 중 ({activeTodos.length})</TabsTrigger>
               <TabsTrigger value="completed">완료 ({completedTodos.length})</TabsTrigger>
-              <TabsTrigger value="all">전체 ({todos.length})</TabsTrigger>
+              <TabsTrigger value="all">전체 ({allTodos.length})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="active">{renderTodoList(activeTodos)}</TabsContent>
-            <TabsContent value="completed">{renderTodoList(completedTodos)}</TabsContent>
-            <TabsContent value="all">{renderTodoList(todos)}</TabsContent>
+            {/* 단일 렌더링으로 탭 전환 시 로딩 없음 */}
+            <div className="mt-4">
+              {renderTodoList(displayTodos)}
+            </div>
           </Tabs>
         </CardContent>
       </Card>

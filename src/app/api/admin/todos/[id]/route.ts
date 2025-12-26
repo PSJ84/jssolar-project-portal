@@ -47,11 +47,12 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { projectId, title, description, dueDate, priority, assigneeId, toggleComplete } = body;
+    const { projectId, title, description, dueDate, priority, assigneeId, toggleComplete, completedDate } = body;
 
     // 업데이트 데이터 구성
     const updateData: {
-      projectId?: string;
+      projectId?: string | null;
+      organizationId?: string | null;
       title?: string;
       description?: string | null;
       dueDate?: Date | null;
@@ -61,24 +62,31 @@ export async function PATCH(
       completedById?: string | null;
     } = {};
 
-    // 프로젝트 이전
-    if (projectId !== undefined && projectId !== existingTodo.projectId) {
-      // 새 프로젝트가 같은 조직에 속하는지 확인
-      const newProject = await prisma.project.findFirst({
-        where: {
-          id: projectId,
-          organizationId: session.user.organizationId,
-        },
-      });
+    // 프로젝트 변경 (null이면 회사 할 일로 변경)
+    if (projectId !== undefined) {
+      if (projectId === null || projectId === "") {
+        // 회사 할 일로 변경
+        updateData.projectId = null;
+        updateData.organizationId = session.user.organizationId;
+      } else if (projectId !== existingTodo.projectId) {
+        // 다른 프로젝트로 이전
+        const newProject = await prisma.project.findFirst({
+          where: {
+            id: projectId,
+            organizationId: session.user.organizationId,
+          },
+        });
 
-      if (!newProject) {
-        return NextResponse.json(
-          { error: "이전할 프로젝트를 찾을 수 없습니다." },
-          { status: 404 }
-        );
+        if (!newProject) {
+          return NextResponse.json(
+            { error: "이전할 프로젝트를 찾을 수 없습니다." },
+            { status: 404 }
+          );
+        }
+
+        updateData.projectId = projectId;
+        updateData.organizationId = null; // 프로젝트에 속하면 조직 직접 연결 해제
       }
-
-      updateData.projectId = projectId;
     }
 
     if (title !== undefined) {
@@ -107,8 +115,18 @@ export async function PATCH(
       updateData.assigneeId = assigneeId || null;
     }
 
-    // 완료 토글
-    if (toggleComplete) {
+    // 완료일 직접 설정 (수정 폼에서)
+    if (completedDate !== undefined) {
+      if (completedDate) {
+        updateData.completedDate = new Date(completedDate);
+        updateData.completedById = session.user.id;
+      } else {
+        updateData.completedDate = null;
+        updateData.completedById = null;
+      }
+    }
+    // 완료 토글 (체크박스에서)
+    else if (toggleComplete) {
       if (existingTodo.completedDate) {
         // 완료 → 미완료
         updateData.completedDate = null;

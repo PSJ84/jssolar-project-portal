@@ -204,7 +204,7 @@ export default function SolutionHubPage() {
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Badge variant="outline" className="text-xs">
                             <FolderKanban className="h-3 w-3 mr-1" />
-                            {todo.project?.name || "조직 할 일"}
+                            {todo.project?.name || "회사 할 일"}
                           </Badge>
                           <Badge
                             className={`text-xs ${PRIORITY_COLORS[todo.priority]}`}

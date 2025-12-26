@@ -27,6 +27,11 @@ export default async function AdminDashboardPage() {
       completedDate: null,
       dueDate: { not: null },
       startDate: { lte: today }, // 시작된 태스크만 (startDate <= 오늘)
+      // 부모 태스크가 숨김이면 자식도 표시하지 않음
+      OR: [
+        { parentId: null }, // 최상위 태스크
+        { parent: { isActive: true } }, // 부모가 활성화된 경우
+      ],
     },
     select: {
       id: true,
@@ -35,7 +40,7 @@ export default async function AdminDashboardPage() {
       dueDate: true,
       assigneeId: true,
       project: { select: { id: true, name: true } },
-      parent: { select: { id: true, name: true } },
+      parent: { select: { id: true, name: true, isActive: true } },
     },
     orderBy: { dueDate: "asc" },
   });
@@ -79,6 +84,11 @@ export default async function AdminDashboardPage() {
       project: { organizationId, status: "ACTIVE" },
       isActive: true,
       completedDate: { gte: startOfWeek },
+      // 부모 태스크가 숨김이면 자식도 카운트하지 않음
+      OR: [
+        { parentId: null },
+        { parent: { isActive: true } },
+      ],
     },
   });
 

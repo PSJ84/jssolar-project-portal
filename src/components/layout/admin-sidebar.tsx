@@ -26,7 +26,6 @@ const navigation = [
   { name: "프로젝트 현황", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "프로젝트 관리", href: "/admin/projects", icon: FolderKanban },
   { name: "견적 관리", href: "/admin/quotations", icon: FileText },
-  { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "템플릿 관리", href: "/admin/templates", icon: ListTodo },
   { name: "설정", href: "/admin/settings", icon: Settings },
 ];
@@ -39,6 +38,7 @@ const solutionNavigation = [
 ];
 
 const superAdminNavigation = [
+  { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "조직 관리", href: "/super/organizations", icon: Building2 },
   { name: "전체 프로젝트", href: "/super/projects", icon: FolderKanban },
   { name: "템플릿 관리", href: "/super/templates", icon: ListTodo },
@@ -120,10 +120,10 @@ export function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
           );
         })}
 
-        {/* 대시보드 메뉴 */}
+        {/* JSSOLAR 메뉴 */}
         <div className="my-3 border-b" />
         <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-          대시보드
+          JSSOLAR
         </p>
         {solutionNavigation.map((item) => {
           const isActive = pathname === item.href ||

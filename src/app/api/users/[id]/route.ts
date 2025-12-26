@@ -101,12 +101,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { username, name, role, password, organizationId } = body;
+    const { username, name, email, role, password, organizationId } = body;
 
     // 업데이트할 데이터 구성
     const updateData: {
       username?: string;
       name?: string;
+      email?: string | null;
       role?: UserRole;
       password?: string;
       organizationId?: string;
@@ -131,6 +132,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (name !== undefined) {
       updateData.name = name;
+    }
+
+    if (email !== undefined) {
+      updateData.email = email || null;
     }
 
     if (role !== undefined) {
