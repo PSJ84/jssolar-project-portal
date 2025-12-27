@@ -301,8 +301,7 @@ export async function notifyProjectStatusChanged(
       url: `/projects/${projectId}`,
       type: 'PROJECT',
       tag: `project-status-${projectId}`,
-    },
-    { onlyOwners: true }
+    }
   );
 }
 
@@ -335,8 +334,7 @@ export async function notifyPermitCompleted(
       url: `/projects/${projectId}?tab=tasks`,
       type: 'PERMIT',
       tag: `permit-${projectId}-${Date.now()}`,
-    },
-    { onlyOwners: true }
+    }
   );
 }
 
@@ -357,7 +355,6 @@ export async function notifyConstructionStatusChanged(
       url: `/projects/${projectId}?tab=construction`,
       type: 'CONSTRUCTION',
       tag: `construction-${projectId}-${Date.now()}`,
-    },
-    { onlyOwners: true }
+    }
   );
 }
