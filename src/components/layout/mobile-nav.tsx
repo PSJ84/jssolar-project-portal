@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -28,6 +28,8 @@ import {
   CheckSquare,
   BookOpen,
   DollarSign,
+  Monitor,
+  Smartphone,
 } from "lucide-react";
 
 const superAdminNavigation = [
@@ -65,11 +67,42 @@ interface MobileNavProps {
 
 export function MobileNav({ userName, userRole, children }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  const [isDesktopMode, setIsDesktopMode] = useState(false);
   const pathname = usePathname();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isAdmin = userRole === "ADMIN" || isSuperAdmin;
   const navigation = isAdmin ? adminNavigation : clientNavigation;
   const roleLabel = isSuperAdmin ? "슈퍼관리자" : isAdmin ? "관리자" : "사업주";
+
+  // 페이지 로드 시 localStorage에서 설정 불러오기
+  useEffect(() => {
+    const savedMode = localStorage.getItem("desktop-mode");
+    if (savedMode === "true") {
+      setIsDesktopMode(true);
+      setViewport(true);
+    }
+  }, []);
+
+  // viewport meta 태그 변경
+  const setViewport = (desktop: boolean) => {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      if (desktop) {
+        viewport.setAttribute("content", "width=1200");
+      } else {
+        viewport.setAttribute("content", "width=device-width, initial-scale=1");
+      }
+    }
+  };
+
+  // PC/모바일 모드 토글
+  const toggleDesktopMode = () => {
+    const newMode = !isDesktopMode;
+    setIsDesktopMode(newMode);
+    setViewport(newMode);
+    localStorage.setItem("desktop-mode", String(newMode));
+    setOpen(false);
+  };
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
@@ -204,8 +237,25 @@ export function MobileNav({ userName, userRole, children }: MobileNavProps) {
             </nav>
           </div>
 
-          {/* 로그아웃 */}
-          <div className="p-4 border-t shrink-0">
+          {/* PC/모바일 토글 & 로그아웃 */}
+          <div className="p-4 border-t shrink-0 space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={toggleDesktopMode}
+            >
+              {isDesktopMode ? (
+                <>
+                  <Smartphone className="h-4 w-4" />
+                  모바일 화면으로 보기
+                </>
+              ) : (
+                <>
+                  <Monitor className="h-4 w-4" />
+                  PC 화면으로 보기
+                </>
+              )}
+            </Button>
             <Button
               variant="outline"
               className="w-full justify-start gap-2"
