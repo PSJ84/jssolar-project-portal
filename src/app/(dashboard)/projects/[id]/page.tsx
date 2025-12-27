@@ -201,7 +201,7 @@ export default async function ClientProjectDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ view?: string; as?: string }>;
+  searchParams: Promise<{ view?: string; as?: string; tab?: string }>;
 }) {
   const session = await auth();
 
@@ -211,7 +211,7 @@ export default async function ClientProjectDetailPage({
 
   // Next.js 16: await params
   const { id } = await params;
-  const { view, as: viewAsUserId } = await searchParams;
+  const { view, as: viewAsUserId, tab } = await searchParams;
 
   // 어드민이 사업주 시점으로 보는 경우 처리
   const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
@@ -368,7 +368,14 @@ export default async function ClientProjectDetailPage({
       </div>
 
       {/* Tabs - 홈이 첫 번째 탭 (사업주), 개요가 첫 번째 탭 (관리자) */}
-      <Tabs defaultValue={isClient ? (visibleTabs.home ? "home" : "tasks") : "overview"} className="space-y-4">
+      <Tabs defaultValue={
+        // URL에서 tab 파라미터가 있으면 우선 사용
+        tab && ["home", "todos", "tasks", "construction", "documents", "quotations", "overview"].includes(tab)
+          ? tab
+          : isClient
+            ? (visibleTabs.home ? "home" : "tasks")
+            : "overview"
+      } className="space-y-4">
         <div className="overflow-x-auto scrollbar-hide">
           <TabsList className="inline-flex w-max h-auto gap-1">
             {isClient ? (

@@ -270,6 +270,19 @@ export function MobileNav({ userName, userRole, children }: MobileNavProps) {
 
       {/* 메인 콘텐츠 */}
       {children}
+
+      {/* PC 모드일 때 플로팅 버튼 (모바일로 돌아가기) */}
+      {isDesktopMode && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="fixed bottom-4 right-4 z-50 shadow-lg bg-white border-2 gap-2"
+          onClick={toggleDesktopMode}
+        >
+          <Smartphone className="h-4 w-4" />
+          모바일로 보기
+        </Button>
+      )}
     </>
   );
 }
