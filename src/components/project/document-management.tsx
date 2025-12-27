@@ -95,11 +95,13 @@ interface DocumentWithVersion {
 interface DocumentManagementProps {
   projectId: string;
   documents: DocumentWithVersion[];
+  isAdmin?: boolean;
 }
 
 export function DocumentManagement({
   projectId,
   documents,
+  isAdmin = false,
 }: DocumentManagementProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabCategory>("ALL");
@@ -369,6 +371,7 @@ export function DocumentManagement({
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         existingCustomCategories={customCategories}
+        isAdmin={isAdmin}
       />
 
       {/* Add Version Dialog */}

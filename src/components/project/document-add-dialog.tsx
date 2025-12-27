@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -20,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload } from "lucide-react";
+import { Upload, HardDrive, Loader2 } from "lucide-react";
 import { DocumentCategory } from "@/types";
+import { useGoogleDrivePicker, GooglePickerDoc } from "@/hooks/useGoogleDrivePicker";
 
 const categoryLabels: Record<DocumentCategory, string> = {
   CONTRACT: "계약서",
@@ -49,6 +50,7 @@ interface DocumentAddDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingCustomCategories?: string[];
+  isAdmin?: boolean;
 }
 
 export function DocumentAddDialog({
@@ -56,6 +58,7 @@ export function DocumentAddDialog({
   open,
   onOpenChange,
   existingCustomCategories = [],
+  isAdmin = false,
 }: DocumentAddDialogProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,6 +72,41 @@ export function DocumentAddDialog({
     note: "",
   });
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [pendingDocs, setPendingDocs] = useState<GooglePickerDoc[]>([]);
+  const [currentDocIndex, setCurrentDocIndex] = useState(0);
+
+  // Handle Google Drive file selection
+  const handleDriveSelect = useCallback((docs: GooglePickerDoc[]) => {
+    if (docs.length === 0) return;
+
+    if (docs.length === 1) {
+      // Single file: fill in the form
+      const doc = docs[0];
+      setFormData((prev) => ({
+        ...prev,
+        title: prev.title || doc.name.replace(/\.[^/.]+$/, ""), // Remove extension for title
+        fileUrl: doc.url,
+        fileName: doc.name,
+      }));
+    } else {
+      // Multiple files: queue them and process one by one
+      setPendingDocs(docs);
+      setCurrentDocIndex(0);
+      const firstDoc = docs[0];
+      setFormData((prev) => ({
+        ...prev,
+        title: firstDoc.name.replace(/\.[^/.]+$/, ""),
+        fileUrl: firstDoc.url,
+        fileName: firstDoc.name,
+      }));
+    }
+  }, []);
+
+  const { openPicker, isLoading: isPickerLoading, isReady: isPickerReady, error: pickerError } =
+    useGoogleDrivePicker({
+      onSelect: handleDriveSelect,
+      multiSelect: true,
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,18 +139,38 @@ export function DocumentAddDialog({
       });
 
       if (response.ok) {
-        setFormData({
-          title: "",
-          category: "",
-          customCategory: "",
-          description: "",
-          fileUrl: "",
-          fileName: "",
-          note: "",
-        });
-        setShowNewCategoryInput(false);
-        onOpenChange(false);
-        router.refresh();
+        // Check if there are more pending docs
+        if (pendingDocs.length > 0 && currentDocIndex < pendingDocs.length - 1) {
+          const nextIndex = currentDocIndex + 1;
+          const nextDoc = pendingDocs[nextIndex];
+          setCurrentDocIndex(nextIndex);
+          setFormData({
+            title: nextDoc.name.replace(/\.[^/.]+$/, ""),
+            category: formData.category, // Keep the same category
+            customCategory: formData.customCategory,
+            description: "",
+            fileUrl: nextDoc.url,
+            fileName: nextDoc.name,
+            note: "",
+          });
+          router.refresh();
+        } else {
+          // All done, reset everything
+          setFormData({
+            title: "",
+            category: "",
+            customCategory: "",
+            description: "",
+            fileUrl: "",
+            fileName: "",
+            note: "",
+          });
+          setShowNewCategoryInput(false);
+          setPendingDocs([]);
+          setCurrentDocIndex(0);
+          onOpenChange(false);
+          router.refresh();
+        }
       } else {
         const error = await response.json();
         alert(error.message || "문서 추가에 실패했습니다.");
@@ -231,19 +289,48 @@ export function DocumentAddDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fileUrl">
-              파일 URL <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="fileUrl"
-              type="url"
-              value={formData.fileUrl}
-              onChange={(e) =>
-                setFormData({ ...formData, fileUrl: e.target.value })
-              }
-              placeholder="Google Drive 또는 OneDrive 링크"
-              required
-            />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="fileUrl">
+                파일 URL <span className="text-destructive">*</span>
+              </Label>
+              {pendingDocs.length > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  {currentDocIndex + 1} / {pendingDocs.length} 파일
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                id="fileUrl"
+                type="url"
+                value={formData.fileUrl}
+                onChange={(e) =>
+                  setFormData({ ...formData, fileUrl: e.target.value })
+                }
+                placeholder="Google Drive 또는 OneDrive 링크"
+                required
+                className="flex-1"
+              />
+              {isAdmin && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={openPicker}
+                  disabled={!isPickerReady || isPickerLoading}
+                  className="shrink-0"
+                >
+                  {isPickerLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <HardDrive className="h-4 w-4" />
+                  )}
+                  <span className="ml-1 hidden sm:inline">Drive</span>
+                </Button>
+              )}
+            </div>
+            {pickerError && (
+              <p className="text-xs text-destructive">{pickerError}</p>
+            )}
           </div>
 
           <div className="space-y-2">

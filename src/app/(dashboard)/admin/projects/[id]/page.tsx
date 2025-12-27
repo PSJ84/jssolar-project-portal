@@ -513,6 +513,7 @@ export default async function AdminProjectDetailPage({
           <DocumentManagement
             projectId={project.id}
             documents={project.documents}
+            isAdmin={true}
           />
         </TabsContent>
 
