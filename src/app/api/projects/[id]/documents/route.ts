@@ -20,7 +20,7 @@ async function checkProjectAccess(
   userId: string,
   role: UserRole
 ) {
-  if (role === UserRole.ADMIN) {
+  if (role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN) {
     return true;
   }
 
@@ -127,8 +127,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ADMIN only
-    if (session.user.role !== UserRole.ADMIN) {
+    // ADMIN or SUPER_ADMIN only
+    if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json(
         { error: "Forbidden: ADMIN role required" },
         { status: 403 }
