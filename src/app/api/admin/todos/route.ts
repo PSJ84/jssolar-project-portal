@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TodoPriority } from "@prisma/client";
+import { notifyTodoAssigned } from "@/lib/push-notification";
 
 // GET /api/admin/todos - 전체 Todo 조회 (조직 기준)
 export async function GET(request: NextRequest) {
@@ -164,6 +165,11 @@ export async function POST(request: NextRequest) {
         completedBy: { select: { id: true, name: true } },
       },
     });
+
+    // 할일 배정 시 알림 발송
+    if (assigneeId && assigneeId !== session.user.id) {
+      notifyTodoAssigned(todo.id, assigneeId, title.trim(), finalProjectId || undefined).catch(console.error);
+    }
 
     return NextResponse.json(todo, { status: 201 });
   } catch (error) {
